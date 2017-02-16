@@ -1,2 +1,1 @@
 *.ipynb filter=clean_ipynb
-tf-practice/*.ipynb filter=clean_ipynb
