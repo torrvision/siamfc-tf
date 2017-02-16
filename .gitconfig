@@ -1,0 +1,3 @@
+[filter "clean_ipynb"]
+	clean = ./scripts/ipynb_drop_output.py
+	smudge = cat
