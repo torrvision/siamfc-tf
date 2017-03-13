@@ -11,9 +11,7 @@ def set_convolutional(X, W, b, bn_beta, bn_gamma, bn_mm, bn_mv, stride, batchnor
 
         if batchnorm:
             # h = bn_beta + h*bn_gamma
-            h = tf.layers.batch_normalization(h,epsilon=1e-5, \
-                                                momentum=0.9, \
-                                                beta_initializer=tf.constant_initializer(bn_beta), \
+            h = tf.layers.batch_normalization(h, beta_initializer=tf.constant_initializer(bn_beta), \
                                                 gamma_initializer=tf.constant_initializer(bn_gamma), \
                                                 moving_mean_initializer=tf.constant_initializer(bn_mm), \
                                                 moving_variance_initializer=tf.constant_initializer(bn_mv), \
