@@ -13,7 +13,7 @@ def set_convolutional(X, W, b, stride, bn_beta, bn_gamma, bn_mm, bn_mv, filtergr
             W0, W1 = tf.split(W, 2, 3)
             h0 = tf.nn.conv2d(X0, W0, strides=[1, stride, stride, 1], padding='VALID')
             h1 = tf.nn.conv2d(X1, W1, strides=[1, stride, stride, 1], padding='VALID')
-            h = tf.concat([h1,h0], 3) + b
+            h = tf.concat([h0,h1], 3) + b
         else:
             h = tf.nn.conv2d(X, W, strides=[1, stride, stride, 1], padding='VALID') + b
 
