@@ -1,0 +1,5 @@
+{
+	"root_dataset": "../datasets",
+	"root_pretrained": "../pretrained",
+	"root_parameters": "../parameters"
+}

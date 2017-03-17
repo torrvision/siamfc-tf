@@ -1,0 +1,11 @@
+{
+	"join_method": "xcorr",
+	"net": "xc_conv5_32c_s4_e40.mat",
+	"net_gray": "",
+	"windowing": "cosine_sum",
+	"exemplar_sz": 127,
+	"search_sz": 255,
+	"score_sz": 33,
+	"tot_stride": 4,
+	"context": 0.5
+}
