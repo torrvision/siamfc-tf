@@ -1,5 +1,5 @@
 import json
-
+from collections import namedtuple
 def argparse(in_hp, in_evaluation, in_run):
 
     with open('../parameters/hyperparams.json') as json_file:
@@ -19,5 +19,11 @@ def argparse(in_hp, in_evaluation, in_run):
         evaluation[name] = value
     for name,value in in_run.iteritems():
         run[name] = value
-        
+    
+    hp = namedtuple('hp', hp.keys())(**hp)
+    evaluation = namedtuple('evaluation', evaluation.keys())(**evaluation)
+    run = namedtuple('run', run.keys())(**run)
+    env = namedtuple('env', env.keys())(**env)
+    design = namedtuple('design', design.keys())(**design)
+
     return hp, evaluation, run, env, design
