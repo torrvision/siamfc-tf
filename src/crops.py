@@ -17,10 +17,14 @@ def pad_frame(im, pos, patch_sz, avg_chan):
 	return im_padded, npad
 
 def extract_crops(im, npad, pos, sz_src, sz_dst, pyramid_sz):
+	# prepare data to TF format
+	im = np.expand_dims(im, axis=0)
 	sz_src = np.int32(np.round(sz_src))
+	sz_dst = np.int32(sz_dst)
 	c = sz_src/2
 	# we need to consider that the frame has been padded along both axes
-	pos = np.int32(pos+npad)
+	pos = np.int32(pos+npad-c)
+
 	if pyramid_sz>1:
 		max_target_side = sz_src[-1]
 		min_target_side = sz_src[0]
@@ -32,11 +36,12 @@ def extract_crops(im, npad, pos, sz_src, sz_dst, pyramid_sz):
 		box_ind = np.empty([0,1])
 		box_ind[:,0]=0
 		crop = tf.image.crop_to_bounding_box(im, pos[0], pos[1], sz_src, sz_src)		
+		crop = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+	
 	# Can't use this, which would be ideal! box_ind is never of the approriate rank
 	# im:  A 4-D tensor of shape [batch, image_height, image_width, depth]
 	# boxes: the i-th row of the tensor specifies the coordinates of a box in the box_ind[i] image and is specified in normalized coordinates [y1, x1, y2, x2]
 	# box_ind: specify image to which each box refers to
 	# crop = tf.image.crop_and_resize(im, boxes, box_ind, sz_dst)
-
 
 	return crop
