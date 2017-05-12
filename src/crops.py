@@ -42,7 +42,9 @@ def extract_crops(im, npad, pos, sz_src, sz_dst):
 			pos = np.int32(pos+npad-c)
 			# with tf.device("/gpu:0"):
 			crop = tf.image.crop_to_bounding_box(im, pos[0], pos[1], np.int32(sz_src), np.int32(sz_src))
-			crops = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+			crop = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)			
+			# replicate z template to match x_crops size
+			crops = tf.concat([crop, crop, crop], axis=0)
 		else:
 			raise ValueError('Code working ony for 1 or 3 scales.')
 	

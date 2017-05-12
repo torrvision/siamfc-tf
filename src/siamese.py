@@ -89,12 +89,10 @@ def construct_graph(X, Z, params_names_list, params_values_list):
             net_z = tf.nn.max_pool(net_z, [1,pool_sz,pool_sz,1], strides=[1,pool_stride[i],pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
 
     ## finalize network
-    # z is [B, Hz, Wz, C]
-    # x is [B, Hx, Wx, C]
+    # z, x are [B, H, W, C]
     net_z = tf.transpose(net_z, perm=[1,2,0,3])
     net_x = tf.transpose(net_x, perm=[1,2,0,3])
-    # z is [Hz, Wz, B, C]
-    # x is [Hx, Wx, B, C]
+    # z, x are [H, W, B, C]
     shape_z = tf.shape(net_z)
     shape_x = tf.shape(net_x)
     Hz = shape_z[0]
