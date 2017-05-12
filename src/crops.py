@@ -22,33 +22,36 @@ def extract_crops(im, npad, pos, sz_src, sz_dst):
 	im = np.expand_dims(im, axis=0)
 	sz_dst = np.int32(sz_dst)
 		
-	# initialize crops on GPU
-	with tf.device("/gpu:0"):
-		crops = []
-
-	if num_scales>1:
+	if num_scales==3:
 		# take center of the biggest scaled source patch
 		c = sz_src[-1]/2
 		pos = np.int32(pos+npad-c)
 		search_area = tf.image.crop_to_bounding_box(im, pos[0], pos[1], np.int32(sz_src[-1]), np.int32(sz_src[-1]))
-		for i in xrange(0, num_scales-1):
-			offset = np.int32((sz_src[num_scales-1]-sz_src[i])/2)
-			crop = tf.image.crop_to_bounding_box(search_area, offset, offset, np.int32(sz_src[i]), np.int32(sz_src[i]))
-			crop = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
-			crops = tf.stack([crops, crop], axis=0)
-			
-		crop = tf.image.resize_images(search_area, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
-		crops = tf.stack([crops, crop], axis=0)
+		offset_s0 = np.int32((sz_src[-1]-sz_src[0])/2)
+		offset_s1 = np.int32((sz_src[-1]-sz_src[1])/2)		
+		# with tf.device("/gpu:0"):
+		crop_s0 = tf.image.crop_to_bounding_box(search_area, offset_s0, offset_s0, np.int32(sz_src[0]), np.int32(sz_src[0]))
+		crop_s0 = tf.image.resize_images(crop_s0, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+		crop_s1 = tf.image.crop_to_bounding_box(search_area, offset_s1, offset_s1, np.int32(sz_src[1]), np.int32(sz_src[1]))
+		crop_s1 = tf.image.resize_images(crop_s1, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+		crop_s2 = tf.image.resize_images(search_area, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+		crops = tf.concat([crop_s0, crop_s1, crop_s2], axis=0)
 	else:
-		c = sz_src/2
-		pos = np.int32(pos+npad-c)
-		crop = tf.image.crop_to_bounding_box(im, pos[0], pos[1], np.int32(sz_src), np.int32(sz_src))
-		crops = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+		if num_scales==1:
+			c = sz_src/2
+			pos = np.int32(pos+npad-c)
+			# with tf.device("/gpu:0"):
+			crop = tf.image.crop_to_bounding_box(im, pos[0], pos[1], np.int32(sz_src), np.int32(sz_src))
+			crops = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+		else:
+			raise ValueError('Code working ony for 1 or 3 scales.')
 	
-	# Can't use this, which would be ideal! box_ind is never of the approriate rank
+	return crops
+
+	# Can't manage to use tf.crop_and_resize, which would be ideal! box_ind is never of the approriate rank
 	# im:  A 4-D tensor of shape [batch, image_height, image_width, depth]
 	# boxes: the i-th row of the tensor specifies the coordinates of a box in the box_ind[i] image and is specified in normalized coordinates [y1, x1, y2, x2]
 	# box_ind: specify image to which each box refers to
 	# crop = tf.image.crop_and_resize(im, boxes, box_ind, sz_dst)
 
-	return crops
+	
