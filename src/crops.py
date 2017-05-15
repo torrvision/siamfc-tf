@@ -2,18 +2,16 @@ from __future__ import division
 import numpy as np
 import tensorflow as tf
 
-def pad_frame(im, pos, patch_sz, avg_chan):
-	frame_sz = np.asarray(np.shape(im))[0:2]
+def pad_frame(im, frame_sz, pos, patch_sz, avg_chan):
 	xleft_pad = max(0, -np.round(pos[1]-patch_sz/2))
 	ytop_pad = max(0, -np.round(pos[0]-patch_sz/2))
 	xright_pad = max(0, np.round(pos[1]+patch_sz/2)-frame_sz[1])
 	ybottom_pad = max(0, np.round(pos[0]+patch_sz/2)-frame_sz[0])
-	npad = np.int16(max(xleft_pad,ytop_pad,xright_pad,ybottom_pad))
-	# pad image uniformly all around, each channel is padded independently
-	imR = np.expand_dims(np.pad(im[:,:,0], npad, mode='constant', constant_values=np.round(avg_chan[0])), 2)
-	imG = np.expand_dims(np.pad(im[:,:,1], npad, mode='constant', constant_values=np.round(avg_chan[1])), 2)
-	imB = np.expand_dims(np.pad(im[:,:,2], npad, mode='constant', constant_values=np.round(avg_chan[2])), 2)
-	im_padded = np.concatenate((imR,imG,imB),axis=2)
+	npad = np.int32(max(xleft_pad,ytop_pad,xright_pad,ybottom_pad))
+	paddings = [[npad,npad],[npad,npad],[0,0]]
+	im_padded = im - avg_chan
+	im_padded = tf.pad(im_padded, paddings, mode='CONSTANT')
+	im_padded = im_padded + avg_chan
 	return im_padded, npad
 
 def extract_crops(im, npad, pos, sz_src, sz_dst):
