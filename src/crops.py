@@ -16,8 +16,7 @@ def pad_frame(im, frame_sz, pos, patch_sz, avg_chan):
 
 def extract_crops(im, npad, pos, sz_src, sz_dst):
 	num_scales = np.size(sz_src)
-	# prepare data to TF format
-	im = np.expand_dims(im, axis=0)
+	# im = np.expand_dims(im, axis=0)
 	sz_dst = np.int32(sz_dst)
 		
 	if num_scales==3:
@@ -33,16 +32,15 @@ def extract_crops(im, npad, pos, sz_src, sz_dst):
 		crop_s1 = tf.image.crop_to_bounding_box(search_area, offset_s1, offset_s1, np.int32(sz_src[1]), np.int32(sz_src[1]))
 		crop_s1 = tf.image.resize_images(crop_s1, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
 		crop_s2 = tf.image.resize_images(search_area, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
-		crops = tf.concat([crop_s0, crop_s1, crop_s2], axis=0)
+		crops = tf.stack([crop_s0, crop_s1, crop_s2])
 	else:
 		if num_scales==1:
 			c = sz_src/2
 			pos = np.int32(pos+npad-c)
 			# with tf.device("/gpu:0"):
 			crop = tf.image.crop_to_bounding_box(im, pos[0], pos[1], np.int32(sz_src), np.int32(sz_src))
-			crop = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)			
-			# replicate z template to match x_crops size
-			crops = tf.concat([crop, crop, crop], axis=0)
+			crop = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
+			crops = tf.stack([crop, crop, crop])
 		else:
 			raise ValueError('Code working ony for 1 or 3 scales.')
 	
