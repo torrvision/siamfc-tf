@@ -2,13 +2,15 @@ import numpy as np
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 
-def show_frame(frame, fig_n):
+def show_frame(frame, bbox, fig_n):
     fig = plt.figure(fig_n)
     ax = fig.add_subplot(111)
+    r = patches.Rectangle((bbox[0],bbox[1]), bbox[2], bbox[3], linewidth=2, edgecolor='r', fill=False)
     ax.imshow(np.uint8(frame))
+    ax.add_patch(r)
     plt.ion()
     plt.show()
-    plt.pause(0.001)
+    plt.pause(1)
 
 def show_crops(crops, fig_n):
     fig = plt.figure(fig_n)
@@ -32,4 +34,4 @@ def show_scores(scores, fig_n):
     ax3.imshow(scores[2,:,:], interpolation='none', cmap='hot')
     plt.ion()
     plt.show()
-    plt.pause(1)
+    plt.pause(0.001)
