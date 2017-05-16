@@ -20,7 +20,7 @@ num_layers = len(conv_stride)
 ###################################################################
 
 # import pretrained Siamese network from matconvnet
-def import_siamese(net_path, X, Z):
+def siamese(net_path, X, Z):
     # read mat file from net_path and start TF Siamese graph from placeholders X and Z
     mat = scipy.io.loadmat(net_path)
     net_dot_mat = mat.get('net')
@@ -32,8 +32,8 @@ def import_siamese(net_path, X, Z):
     params_names_list = [params_names[p][0] for p in xrange(params_names.size)]
     params_values = params['value'][0]
     params_values_list = [params_values[p] for p in xrange(params_values.size)]
-    net_final = construct_graph(X, Z, params_names_list, params_values_list)
-    return net_final
+    scores = construct_graph(X, Z, params_names_list, params_values_list)
+    return scores
 
 # find all parameters matching the codename (there should be only one)
 def find_params(x, params):
