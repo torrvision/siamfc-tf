@@ -3,7 +3,7 @@ import numpy as np
 import scipy.io
 import sys
 sys.path.append('../')
-from src.convolutional import *
+from src.convolutional import set_convolutional
 
 ###################################################################
 # this is defined manually and should reflect the network to import
@@ -32,8 +32,8 @@ def siamese(net_path, X, Z):
     params_names_list = [params_names[p][0] for p in xrange(params_names.size)]
     params_values = params['value'][0]
     params_values_list = [params_values[p] for p in xrange(params_values.size)]
-    scores = construct_graph(X, Z, params_names_list, params_values_list)
-    return scores
+    template_z, template_x = create_siamese(X, Z, params_names_list, params_values_list)
+    return template_z, template_x, params_names_list, params_values_list
 
 # find all parameters matching the codename (there should be only one)
 def find_params(x, params):
@@ -42,7 +42,7 @@ def find_params(x, params):
     return matching
 
 # tensorflow graph
-def construct_graph(X, Z, params_names_list, params_values_list):
+def create_siamese(X, Z, params_names_list, params_values_list):
     # placeholders for search region crop X and exemplar crop Z    
     net_x = X    
     net_z = Z
@@ -87,7 +87,10 @@ def construct_graph(X, Z, params_names_list, params_values_list):
             print '\t\tMAX-POOL: size '+str(pool_sz)+ ' and stride '+str(pool_stride[i])
             net_x = tf.nn.max_pool(net_x, [1,pool_sz,pool_sz,1], strides=[1,pool_stride[i],pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
             net_z = tf.nn.max_pool(net_z, [1,pool_sz,pool_sz,1], strides=[1,pool_stride[i],pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
+    
+    return net_z, net_x
 
+def match_templates(net_z, net_x, params_names_list, params_values_list):
     ## finalize network
     # z, x are [B, H, W, C]
     net_z = tf.transpose(net_z, perm=[1,2,0,3])
@@ -124,5 +127,5 @@ def construct_graph(X, Z, params_names_list, params_values_list):
                                                 moving_mean_initializer=tf.constant_initializer(bn_moving_mean), \
                                                 moving_variance_initializer=tf.constant_initializer(bn_moving_variance), \
                                                 training=False, trainable=False)
-    
+
     return net_final

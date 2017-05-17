@@ -10,7 +10,9 @@ def show_frame(frame, bbox, fig_n):
     ax.add_patch(r)
     plt.ion()
     plt.show()
-    plt.pause(1)
+    plt.pause(0.001)
+    # TODO: fix visualization so that image+bbox is redrawn in the same figure
+    plt.close('all')
 
 def show_crops(crops, fig_n):
     fig = plt.figure(fig_n)
