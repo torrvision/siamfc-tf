@@ -1,5 +1,4 @@
 
-# coding: utf-8
 import tensorflow as tf
 print('Using Tensorflow '+tf.__version__)
 assert tf.__version__>='1.0.0', ('You should use Tensorflow 1.0 or superior')
@@ -154,16 +153,7 @@ def tracker (hp, evaluation, run):
             score = score - np.min(score)
             # apply displacement penalty
             score = (1-hp.window_influence)*score + hp.window_influence*penalty
-            # find location of score maximizer
-            p = np.asarray(np.unravel_index(np.argmax(score), np.shape(score)))
-            # displacement from the center in search area final representation ...
-            disp_in_area = p - float(final_score_sz)/2
-            # displacement from the center in instance crop
-            disp_in_xcrop = disp_in_area * float(design.tot_stride) / hp.response_up
-            # displacement from the center in instance crop (in frame coordinates)
-            disp_in_frame = disp_in_xcrop *  x_sz / design.search_sz
-            # *position* within frame in frame coordinates
-            pos_y, pos_x = pos_y + disp_in_frame[0], pos_x + disp_in_frame[1]
+            pos_x, pos_y = _update_target_position(pos_x, pos_y, score, final_score_sz, design.tot_stride, design.search_sz, hp.response_up, x_sz)
             # convert <cx,cy,w,h> to <x,y,w,h> and save output
             bboxes[i,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
             print '('+str(bboxes[i,0])+', '+str(bboxes[i,1])+', '+str(bboxes[i,2])+', '+str(bboxes[i,3])+')'
@@ -188,5 +178,17 @@ def tracker (hp, evaluation, run):
 
     plt.close('all')
 
+def _update_target_position(pos_x, pos_y, score, final_score_sz, tot_stride, search_sz, response_up, x_sz):
+    # find location of score maximizer
+    p = np.asarray(np.unravel_index(np.argmax(score), np.shape(score)))
+    # displacement from the center in search area final representation ...
+    disp_in_area = p - float(final_score_sz)/2
+    # displacement from the center in instance crop
+    disp_in_xcrop = disp_in_area * float(tot_stride) / response_up
+    # displacement from the center in instance crop (in frame coordinates)
+    disp_in_frame = disp_in_xcrop *  x_sz / search_sz
+    # *position* within frame in frame coordinates
+    pos_y, pos_x = pos_y + disp_in_frame[0], pos_x + disp_in_frame[1]
+    return pos_x, pos_y
 
 

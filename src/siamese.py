@@ -20,32 +20,10 @@ num_layers = len(conv_stride)
 ###################################################################
 
 # import pretrained Siamese network from matconvnet
-def siamese(net_path, X, Z):
+def siamese(net_path, net_x, net_z):
     # read mat file from net_path and start TF Siamese graph from placeholders X and Z
-    mat = scipy.io.loadmat(net_path)
-    net_dot_mat = mat.get('net')
+    params_names_list, params_values_list = _import_from_matconvnet(net_path)
 
-    ## organize parameters to import
-    params = net_dot_mat['params']
-    params = params[0][0]
-    params_names = params['name'][0]
-    params_names_list = [params_names[p][0] for p in xrange(params_names.size)]
-    params_values = params['value'][0]
-    params_values_list = [params_values[p] for p in xrange(params_values.size)]
-    template_z, template_x = create_siamese(X, Z, params_names_list, params_values_list)
-    return template_z, template_x, params_names_list, params_values_list
-
-# find all parameters matching the codename (there should be only one)
-def find_params(x, params):
-    matching = [s for s in params if x in s]
-    assert len(matching)==1, ('Ambiguous param name found')    
-    return matching
-
-# tensorflow graph
-def create_siamese(X, Z, params_names_list, params_values_list):
-    # placeholders for search region crop X and exemplar crop Z    
-    net_x = X    
-    net_z = Z
     # loop through the flag arrays and re-construct network, reading parameters of conv and bnorm layers
     for i in xrange(num_layers):
         print '> Layer '+str(i+1)
@@ -87,8 +65,26 @@ def create_siamese(X, Z, params_names_list, params_values_list):
             print '\t\tMAX-POOL: size '+str(pool_sz)+ ' and stride '+str(pool_stride[i])
             net_x = tf.nn.max_pool(net_x, [1,pool_sz,pool_sz,1], strides=[1,pool_stride[i],pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
             net_z = tf.nn.max_pool(net_z, [1,pool_sz,pool_sz,1], strides=[1,pool_stride[i],pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
-    
-    return net_z, net_x
+
+    return net_z, net_x, params_names_list, params_values_list
+
+def _import_from_matconvnet(net_path):
+    mat = scipy.io.loadmat(net_path)
+    net_dot_mat = mat.get('net')
+    ## organize parameters to import
+    params = net_dot_mat['params']
+    params = params[0][0]
+    params_names = params['name'][0]
+    params_names_list = [params_names[p][0] for p in xrange(params_names.size)]
+    params_values = params['value'][0]
+    params_values_list = [params_values[p] for p in xrange(params_values.size)]
+    return params_names_list, params_values_list
+
+# find all parameters matching the codename (there should be only one)
+def find_params(x, params):
+    matching = [s for s in params if x in s]
+    assert len(matching)==1, ('Ambiguous param name found')    
+    return matching
 
 def match_templates(net_z, net_x, params_names_list, params_values_list):
     ## finalize network
@@ -96,16 +92,8 @@ def match_templates(net_z, net_x, params_names_list, params_values_list):
     net_z = tf.transpose(net_z, perm=[1,2,0,3])
     net_x = tf.transpose(net_x, perm=[1,2,0,3])
     # z, x are [H, W, B, C]
-    shape_z = tf.shape(net_z)
-    shape_x = tf.shape(net_x)
-    Hz = shape_z[0]
-    Wz = shape_z[1]
-    B = shape_z[2]
-    C = shape_z[3]
-    Hx = shape_x[0]
-    Wx = shape_x[1]
-    Bx = shape_x[2]
-    Cx = shape_x[3]
+    Hz, Wz, B, C = tf.unstack(tf.shape(net_z))
+    Hx, Wx, Bx, Cx = tf.unstack(tf.shape(net_x))
     # assert B==Bx, ('Z and X should have same Batch size')
     # assert C==Cx, ('Z and X should have same Channels number')
     net_z = tf.reshape(net_z, (Hz, Wz, B*C, 1))
