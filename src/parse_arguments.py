@@ -1,7 +1,8 @@
 import json
 from collections import namedtuple
-def argparse(in_hp, in_evaluation, in_run):
 
+def parse_arguments(in_hp, in_evaluation, in_run):
+    
     with open('../parameters/hyperparams.json') as json_file:
         hp = json.load(json_file)
     with open('../parameters/evaluation.json') as json_file:
