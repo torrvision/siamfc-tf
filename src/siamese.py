@@ -1,26 +1,60 @@
 import tensorflow as tf
 import numpy as np
 import scipy.io
+import os.path
 import sys
 sys.path.append('../')
+from src.crops import extract_crops_z, extract_crops_x, pad_frame
 from src.convolutional import set_convolutional
 
-###################################################################
-# this is defined manually and should reflect the network to import
-conv_stride = np.array([2,1,1,1,1])
-filtergroup_yn = np.array([0,1,0,1,1], dtype=bool)
-bnorm_yn = np.array([1,1,1,1,0], dtype=bool)
-relu_yn = np.array([1,1,1,1,0], dtype=bool)
-pool_stride = np.array([2,1,0,0,0]) # 0 means no pool
-pool_sz = 3
-bnorm_adjust = True
-assert len(conv_stride) == len(filtergroup_yn) == len(bnorm_yn) == len(relu_yn) == len(pool_stride), ('These arrays of flags should have same length')
-assert all(conv_stride) >= True, ('The number of conv layers is assumed to define the depth of the network')
-num_layers = len(conv_stride)
-###################################################################
+# Placeholders
+pos_x_ph = tf.placeholder(tf.float64)
+pos_y_ph = tf.placeholder(tf.float64)
+z_sz_ph = tf.placeholder(tf.float64)
+x_sz0_ph = tf.placeholder(tf.float64)
+x_sz1_ph = tf.placeholder(tf.float64)
+x_sz2_ph = tf.placeholder(tf.float64)
+
+# network design, has to reflect the network to import
+_conv_stride = np.array([2,1,1,1,1])
+_filtergroup_yn = np.array([0,1,0,1,1], dtype=bool)
+_bnorm_yn = np.array([1,1,1,1,0], dtype=bool)
+_relu_yn = np.array([1,1,1,1,0], dtype=bool)
+_pool_stride = np.array([2,1,0,0,0]) # 0 means no pool
+_pool_sz = 3
+_bnorm_adjust = True
+assert len(_conv_stride) == len(_filtergroup_yn) == len(_bnorm_yn) == len(_relu_yn) == len(_pool_stride), ('These arrays of flags should have same length')
+assert all(_conv_stride) >= True, ('The number of conv layers is assumed to define the depth of the network')
+_num_layers = len(_conv_stride)
+
+# build the TF graph, from list of frames to score maps
+def build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, design, env):
+    # Make a queue of file names
+    filename_queue = tf.train.string_input_producer(frame_name_list, shuffle=False, capacity=num_frames)
+    image_reader = tf.WholeFileReader()
+    # Read a whole file from the queue
+    _, image_file = image_reader.read(filename_queue)
+    # Decode the image as a JPEG file, this will turn it into a Tensor
+    image = tf.cast(tf.image.decode_jpeg(image_file), tf.int32)
+    # used to pad the crops
+    avg_chan = tf.cast(tf.reduce_mean(image, axis=(0,1)), tf.int32)
+    # pad with avg color if necessary
+    frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph, avg_chan);
+    # extract tensor of z_crops (all identical)
+    z_crops = extract_crops_z(frame_padded_z, npad_z, pos_x_ph, pos_y_ph, z_sz_ph, design.exemplar_sz)
+    frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph, avg_chan);
+    # extract tensor of x_crops (3 scales)
+    x_crops = extract_crops_x(frame_padded_x, npad_x, pos_x_ph, pos_y_ph, x_sz0_ph, x_sz1_ph, x_sz2_ph, design.search_sz)
+    # use crops as input of (MatConvnet imported) pre-trained fully-convolutional Siamese net
+    template_z, template_x, p_names_list, p_val_list = branches(os.path.join(env.root_pretrained,design.net), x_crops, z_crops)
+    # cross-correlate the two templates and obtain a batch of scores (one per scale)
+    scores = match_templates(template_z, template_x, p_names_list, p_val_list)    
+    # upsample the score maps
+    scores_up = tf.image.resize_images(scores, [final_score_sz, final_score_sz])
+    return image, template_z, scores_up
 
 # import pretrained Siamese network from matconvnet
-def siamese(net_path, X, Z):
+def branches(net_path, X, Z):
     # read mat file from net_path and start TF Siamese graph from placeholders X and Z
     mat = scipy.io.loadmat(net_path)
     net_dot_mat = mat.get('net')
@@ -32,63 +66,8 @@ def siamese(net_path, X, Z):
     params_names_list = [params_names[p][0] for p in xrange(params_names.size)]
     params_values = params['value'][0]
     params_values_list = [params_values[p] for p in xrange(params_values.size)]
-    template_z, template_x = create_siamese(X, Z, params_names_list, params_values_list)
+    template_z, template_x = _create_siamese(X, Z, params_names_list, params_values_list)
     return template_z, template_x, params_names_list, params_values_list
-
-# find all parameters matching the codename (there should be only one)
-def find_params(x, params):
-    matching = [s for s in params if x in s]
-    assert len(matching)==1, ('Ambiguous param name found')    
-    return matching
-
-# tensorflow graph
-def create_siamese(X, Z, params_names_list, params_values_list):
-    # placeholders for search region crop X and exemplar crop Z    
-    net_x = X    
-    net_z = Z
-    # loop through the flag arrays and re-construct network, reading parameters of conv and bnorm layers
-    for i in xrange(num_layers):
-        print '> Layer '+str(i+1)
-        # conv
-        conv_W_name = find_params('conv'+str(i+1)+'f', params_names_list)[0]
-        conv_b_name = find_params('conv'+str(i+1)+'b', params_names_list)[0]
-        print '\t\tCONV: setting '+conv_W_name+' '+conv_b_name
-        print '\t\tCONV: stride '+str(conv_stride[i])+', filter-group '+str(filtergroup_yn[i])
-        conv_W = params_values_list[params_names_list.index(conv_W_name)]
-        conv_b = params_values_list[params_names_list.index(conv_b_name)]
-        # batchnorm
-        if bnorm_yn[i]:
-            bn_beta_name = find_params('bn'+str(i+1)+'b', params_names_list)[0]
-            bn_gamma_name = find_params('bn'+str(i+1)+'m', params_names_list)[0]
-            bn_moments_name = find_params('bn'+str(i+1)+'x', params_names_list)[0]
-            print '\t\tBNORM: setting '+bn_beta_name+' '+bn_gamma_name+' '+bn_moments_name
-            bn_beta = params_values_list[params_names_list.index(bn_beta_name)]
-            bn_gamma = params_values_list[params_names_list.index(bn_gamma_name)]
-            bn_moments = params_values_list[params_names_list.index(bn_moments_name)]
-            bn_moving_mean = bn_moments[:,0]
-            bn_moving_variance = bn_moments[:,1]**2 # saved as std in matconvnet
-        else:
-            bn_beta = bn_gamma = bn_moving_mean = bn_moving_variance = []
-        
-        # set up conv "block" with bnorm and activation 
-        net_x = set_convolutional(net_x, conv_W, np.swapaxes(conv_b,0,1), conv_stride[i], \
-                            bn_beta, bn_gamma, bn_moving_mean, bn_moving_variance, \
-                            filtergroup=filtergroup_yn[i], batchnorm=bnorm_yn[i], activation=relu_yn[i], \
-                            scope='conv'+str(i+1), reuse=False)
-        
-        # notice reuse=True for Siamese parameters sharing
-        net_z = set_convolutional(net_z, conv_W, np.swapaxes(conv_b,0,1), conv_stride[i], \
-                            bn_beta, bn_gamma, bn_moving_mean, bn_moving_variance, \
-                            filtergroup=filtergroup_yn[i], batchnorm=bnorm_yn[i], activation=relu_yn[i], \
-                            scope='conv'+str(i+1), reuse=True)    
-        
-        # add max pool if required
-        if pool_stride[i]>0:
-            print '\t\tMAX-POOL: size '+str(pool_sz)+ ' and stride '+str(pool_stride[i])
-            net_x = tf.nn.max_pool(net_x, [1,pool_sz,pool_sz,1], strides=[1,pool_stride[i],pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
-            net_z = tf.nn.max_pool(net_z, [1,pool_sz,pool_sz,1], strides=[1,pool_stride[i],pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
-    
-    return net_z, net_x
 
 def match_templates(net_z, net_x, params_names_list, params_values_list):
     ## finalize network
@@ -116,7 +95,7 @@ def match_templates(net_z, net_x, params_names_list, params_values_list):
     # final is [B, Hf, Wf, C]
     net_final = tf.expand_dims(tf.reduce_sum(net_final, axis=3), axis=3)
     # final is [B, Hf, Wf, 1]
-    if bnorm_adjust:
+    if _bnorm_adjust:
         bn_beta = params_values_list[params_names_list.index('fin_adjust_bnb')]
         bn_gamma = params_values_list[params_names_list.index('fin_adjust_bnm')]
         bn_moments = params_values_list[params_names_list.index('fin_adjust_bnx')]
@@ -129,3 +108,58 @@ def match_templates(net_z, net_x, params_names_list, params_values_list):
                                                 training=False, trainable=False)
 
     return net_final
+
+# find all parameters matching the codename (there should be only one)
+def _find_params(x, params):
+    matching = [s for s in params if x in s]
+    assert len(matching)==1, ('Ambiguous param name found')    
+    return matching
+
+# tensorflow graph
+def _create_siamese(X, Z, params_names_list, params_values_list):
+    # placeholders for search region crop X and exemplar crop Z    
+    net_x = X    
+    net_z = Z
+    # loop through the flag arrays and re-construct network, reading parameters of conv and bnorm layers
+    for i in xrange(_num_layers):
+        print '> Layer '+str(i+1)
+        # conv
+        conv_W_name = _find_params('conv'+str(i+1)+'f', params_names_list)[0]
+        conv_b_name = _find_params('conv'+str(i+1)+'b', params_names_list)[0]
+        print '\t\tCONV: setting '+conv_W_name+' '+conv_b_name
+        print '\t\tCONV: stride '+str(_conv_stride[i])+', filter-group '+str(_filtergroup_yn[i])
+        conv_W = params_values_list[params_names_list.index(conv_W_name)]
+        conv_b = params_values_list[params_names_list.index(conv_b_name)]
+        # batchnorm
+        if _bnorm_yn[i]:
+            bn_beta_name = _find_params('bn'+str(i+1)+'b', params_names_list)[0]
+            bn_gamma_name = _find_params('bn'+str(i+1)+'m', params_names_list)[0]
+            bn_moments_name = _find_params('bn'+str(i+1)+'x', params_names_list)[0]
+            print '\t\tBNORM: setting '+bn_beta_name+' '+bn_gamma_name+' '+bn_moments_name
+            bn_beta = params_values_list[params_names_list.index(bn_beta_name)]
+            bn_gamma = params_values_list[params_names_list.index(bn_gamma_name)]
+            bn_moments = params_values_list[params_names_list.index(bn_moments_name)]
+            bn_moving_mean = bn_moments[:,0]
+            bn_moving_variance = bn_moments[:,1]**2 # saved as std in matconvnet
+        else:
+            bn_beta = bn_gamma = bn_moving_mean = bn_moving_variance = []
+        
+        # set up conv "block" with bnorm and activation 
+        net_x = set_convolutional(net_x, conv_W, np.swapaxes(conv_b,0,1), _conv_stride[i], \
+                            bn_beta, bn_gamma, bn_moving_mean, bn_moving_variance, \
+                            filtergroup=_filtergroup_yn[i], batchnorm=_bnorm_yn[i], activation=_relu_yn[i], \
+                            scope='conv'+str(i+1), reuse=False)
+        
+        # notice reuse=True for Siamese parameters sharing
+        net_z = set_convolutional(net_z, conv_W, np.swapaxes(conv_b,0,1), _conv_stride[i], \
+                            bn_beta, bn_gamma, bn_moving_mean, bn_moving_variance, \
+                            filtergroup=_filtergroup_yn[i], batchnorm=_bnorm_yn[i], activation=_relu_yn[i], \
+                            scope='conv'+str(i+1), reuse=True)    
+        
+        # add max pool if required
+        if _pool_stride[i]>0:
+            print '\t\tMAX-POOL: size '+str(_pool_sz)+ ' and stride '+str(_pool_stride[i])
+            net_x = tf.nn.max_pool(net_x, [1,_pool_sz,_pool_sz,1], strides=[1,_pool_stride[i],_pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
+            net_z = tf.nn.max_pool(net_z, [1,_pool_sz,_pool_sz,1], strides=[1,_pool_stride[i],_pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
+    
+    return net_z, net_x

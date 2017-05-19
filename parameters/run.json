@@ -1,5 +1,4 @@
 {
 	"visualization": 0,
-	"debug": 0,
-	"gpus": [1]
+	"debug": 0
 }
