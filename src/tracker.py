@@ -1,7 +1,6 @@
 
 import tensorflow as tf
 print('Using Tensorflow '+tf.__version__)
-assert tf.__version__>='1.0.0', ('You should use Tensorflow 1.0 or superior')
 from PIL import Image
 import matplotlib.pyplot as plt
 import sys
