@@ -83,7 +83,7 @@ def tracker (hp, evaluation, run):
         t_start = time.time()
 
         # Get an image from the queue
-        for i in xrange(evaluation.start_frame+1, 10):        
+        for i in xrange(evaluation.start_frame+1, num_frames):        
             scaled_exemplar = z_sz * scale_factors
             scaled_search_area = x_sz * scale_factors
             scaled_target_w = target_w * scale_factors

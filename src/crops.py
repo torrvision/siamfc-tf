@@ -22,7 +22,8 @@ def extract_crops_z(im, npad, pos_x, pos_y, sz_src, sz_dst):
 	tr_y = tf.round(pos_y+npad-c)
 	crop = tf.image.crop_to_bounding_box(im, tf.cast(tr_y,tf.int32), tf.cast(tr_x, tf.int32), tf.cast(sz_src, tf.int32), tf.cast(sz_src, tf.int32))
 	crop = tf.image.resize_images(crop, [sz_dst,sz_dst], method=tf.image.ResizeMethod.BILINEAR)
-	crops = tf.stack([crop, crop, crop])
+	# crops = tf.stack([crop, crop, crop])
+	crops = tf.expand_dims(crop, axis=0)
 	return crops
 
 def extract_crops_x(im, npad, pos_x, pos_y, sz_src0, sz_src1, sz_src2, sz_dst):
