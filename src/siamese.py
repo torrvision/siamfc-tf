@@ -32,7 +32,7 @@ def build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, 
     filename_queue = tf.train.string_input_producer(frame_name_list, shuffle=False, capacity=num_frames)
     image_reader = tf.WholeFileReader()
     # Read a whole file from the queue
-    _, image_file = image_reader.read(filename_queue)
+    image_name, image_file = image_reader.read(filename_queue)
     # Decode the image as a JPEG file, this will turn it into a Tensor
     image = tf.cast(tf.image.decode_jpeg(image_file), tf.int32)
     # used to pad the crops
@@ -52,7 +52,7 @@ def build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, 
     scores = _match_templates(templates_z, templates_x, p_names_list, p_val_list)
     # upsample the score maps
     scores_up = tf.image.resize_images(scores, [final_score_sz, final_score_sz])
-    return image, template_z, scores_up
+    return image_name, image, template_z, scores_up
 
 # import pretrained Siamese network from matconvnet
 def _create_siamese(net_path, net_x, net_z):
