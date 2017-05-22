@@ -1,7 +1,6 @@
 
 import tensorflow as tf
 print('Using Tensorflow '+tf.__version__)
-from PIL import Image
 import matplotlib.pyplot as plt
 import sys
 # sys.path.append('../')
@@ -11,9 +10,6 @@ import numpy as np
 import time
 
 import src.siamese as siam
-from src.parse_arguments import parse_arguments
-from src.region_to_bbox import region_to_bbox
-from src.pprint_params import pprint_params
 from src.visualization import show_frame, show_crops, show_scores
 
 
@@ -21,22 +17,9 @@ from src.visualization import show_frame, show_crops, show_scores
 #os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
 
 # read default parameters and override with custom ones
-def tracker (hp, evaluation, run):
-    hp,evaluation,run,env,design = parse_arguments(hp, evaluation, run)
-
-    video_folder = os.path.join(env.root_dataset, evaluation.dataset, evaluation.video)
-    frame_name_list = [f for f in os.listdir(video_folder) if f.endswith(".jpg")]
-    frame_name_list = [os.path.join(env.root_dataset, evaluation.dataset, evaluation.video, '') + s for s in frame_name_list]
-    frame_name_list.sort()
+def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, 
+    pos_x, pos_y, target_w, target_h):
     num_frames = np.size(frame_name_list)
-    with Image.open(frame_name_list[0]) as img:
-        frame_sz = np.asarray(img.size)
-        frame_sz[1], frame_sz[0] = frame_sz[0], frame_sz[1]
-
-    # read the initialization from ground truth
-    gt_file = os.path.join(video_folder, 'groundtruth.txt')
-    gt = np.genfromtxt(gt_file, delimiter=',')
-    assert len(gt) == len(frame_name_list), ('Number of frames and number of GT lines should be equal.')
     # stores tracker's output for evaluation
     bboxes = np.zeros((num_frames,4))
 
@@ -47,9 +30,6 @@ def tracker (hp, evaluation, run):
     penalty = np.transpose(hann_1d) * hann_1d
     penalty = penalty / np.sum(penalty)
 
-    ## tracker's state initializations
-    # bbox is in format <cx,cy,w,h>
-    pos_x,pos_y,target_w,target_h = region_to_bbox(gt[evaluation.start_frame])
     context = design.context*(target_w+target_h)
     z_sz = np.sqrt(np.prod((target_w+context)*(target_h+context)))
     x_sz = design.search_sz/design.exemplar_sz * z_sz
@@ -85,7 +65,7 @@ def tracker (hp, evaluation, run):
         t_start = time.time()
 
         # Get an image from the queue
-        for i in range(evaluation.start_frame+1, num_frames):        
+        for i in range(evaluation.start_frame+1, 10):        
             scaled_exemplar = z_sz * scale_factors
             scaled_search_area = x_sz * scale_factors
             scaled_target_w = target_w * scale_factors
@@ -145,6 +125,7 @@ def tracker (hp, evaluation, run):
         coord.join(threads) 
 
     plt.close('all')
+    return bboxes, speed
 
 def _update_target_position(pos_x, pos_y, score, final_score_sz, tot_stride, search_sz, response_up, x_sz):
     # find location of score maximizer
