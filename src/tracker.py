@@ -5,7 +5,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import sys
 # sys.path.append('../')
-import os.path
+import os
 import csv
 import numpy as np
 import time
@@ -15,6 +15,10 @@ from src.parse_arguments import parse_arguments
 from src.region_to_bbox import region_to_bbox
 from src.pprint_params import pprint_params
 from src.visualization import show_frame, show_crops, show_scores
+
+
+# gpu_device = 2
+#os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
 
 # read default parameters and override with custom ones
 def tracker (hp, evaluation, run):
@@ -59,7 +63,7 @@ def tracker (hp, evaluation, run):
     image_name, image, templates_z, scores = siam.build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, design, env)
 
     #### START TRACKING WITHIN A TF SESSION ####
-    with tf.Session() as sess:
+    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
         tf.global_variables_initializer().run()
         # Coordinate the loading of image files.
         coord = tf.train.Coordinator()
