@@ -56,7 +56,7 @@ def tracker (hp, evaluation, run):
     min_x = hp.scale_min * x_sz
     max_x = hp.scale_max * x_sz
 
-    image_name, image, new_template_z, scores = siam.build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, design, env)
+    image_name, image, templates_z, scores = siam.build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, design, env)
 
     #### START TRACKING WITHIN A TF SESSION ####
     with tf.Session() as sess:
@@ -68,54 +68,34 @@ def tracker (hp, evaluation, run):
         # save first frame position (from ground-truth)
         bboxes[0,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
                 
+
+        image_name_, image_, templates_z_ = sess.run([image_name, image, templates_z], feed_dict={
+                                                                            siam.pos_x_ph: pos_x,
+                                                                            siam.pos_y_ph: pos_y,
+                                                                            siam.z_sz_ph: z_sz})
+        new_templates_z_ = templates_z_
+        
         if run.visualization:
-            image_, template_z_ = sess.run([image, template_z], feed_dict={
-                                                    siam.pos_x_ph: pos_x,
-                                                    siam.pos_y_ph: pos_y,
-                                                    siam.z_sz_ph: z_sz})
             show_frame(image_, bboxes[0,:], 1)
-        else:
-            image_name_, template_z_ = sess.run([image_name, template_z], feed_dict={
-                                                            siam.pos_x_ph: pos_x,
-                                                            siam.pos_y_ph: pos_y,
-                                                            siam.z_sz_ph: z_sz})
-            
-        if run.debug:
-            show_crops(z_crops_, 2)        
 
         t_start = time.time()
 
-        print image_name_
         # Get an image from the queue
-        for i in range(evaluation.start_frame+1, 10):        
+        for i in range(evaluation.start_frame+1, num_frames):        
             scaled_exemplar = z_sz * scale_factors
             scaled_search_area = x_sz * scale_factors
             scaled_target_w = target_w * scale_factors
             scaled_target_h = target_h * scale_factors
             
-            if run.visualization:
-                image_, scores_ = sess.run([image, scores], feed_dict={
-                                                siam.pos_x_ph: pos_x,
-                                                siam.pos_y_ph: pos_y,
-                                                siam.x_sz0_ph: scaled_search_area[0],
-                                                siam.x_sz1_ph: scaled_search_area[1],
-                                                siam.x_sz2_ph: scaled_search_area[2],
-                                                template_z: np.squeeze(template_z_)})
-            else:
-                image_name_, scores_ = sess.run([image_name, scores], feed_dict={
-                                                siam.pos_x_ph: pos_x,
-                                                siam.pos_y_ph: pos_y,
-                                                siam.x_sz0_ph: scaled_search_area[0],
-                                                siam.x_sz1_ph: scaled_search_area[1],
-                                                siam.x_sz2_ph: scaled_search_area[2],
-                                                template_z: np.squeeze(template_z_)})
+            image_name_, image_, scores_ = sess.run([image_name, image, scores], feed_dict={
+                                    siam.pos_x_ph: pos_x,
+                                    siam.pos_y_ph: pos_y,
+                                    siam.x_sz0_ph: scaled_search_area[0],
+                                    siam.x_sz1_ph: scaled_search_area[1],
+                                    siam.x_sz2_ph: scaled_search_area[2],
+                                    templates_z: np.squeeze(templates_z_)
+                                    })
 
-            print image_name_
-            
-            if run.debug:
-                show_crops(np.squeeze(x_crops_), 3)
-                show_scores(np.squeeze(scores_), 4)
-                
             scores_ = np.squeeze(scores_)
             # penalize change of scale
             scores_[0,:,:] = hp.scale_penalty*scores_[0,:,:]
@@ -138,11 +118,14 @@ def tracker (hp, evaluation, run):
             
             # update the target representation with a rolling average
             if hp.z_lr>0:
-                # new_template_z_ = sess.run([template_z], feed_dict={
-                #                                         siam.pos_x_ph:pos_x,
-                #                                         siam.pos_y_ph:pos_y,
-                #                                         siam.z_sz_ph:z_sz})
-                template_z_=(1-hp.z_lr)*np.asarray(template_z_) + hp.z_lr*np.asarray(new_template_z_)
+                new_templates_z_ = sess.run([templates_z], feed_dict={
+                                                                siam.pos_x_ph: pos_x,
+                                                                siam.pos_y_ph: pos_y,
+                                                                siam.z_sz_ph: z_sz,
+                                                                image: image_
+                                                                })
+
+                templates_z_=(1-hp.z_lr)*np.asarray(templates_z_) + hp.z_lr*np.asarray(new_templates_z_)
             
             # update template patch size
             z_sz = (1-hp.scale_lr)*z_sz + hp.scale_lr*scaled_exemplar[new_scale_id]

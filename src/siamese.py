@@ -52,7 +52,7 @@ def build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, 
     scores = _match_templates(templates_z, templates_x, p_names_list, p_val_list)
     # upsample the score maps
     scores_up = tf.image.resize_images(scores, [final_score_sz, final_score_sz])
-    return image_name, image, template_z, scores_up
+    return image_name, image, templates_z, scores_up
 
 # import pretrained Siamese network from matconvnet
 def _create_siamese(net_path, net_x, net_z):
