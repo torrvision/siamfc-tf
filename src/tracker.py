@@ -17,8 +17,7 @@ from src.visualization import show_frame, show_crops, show_scores
 #os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
 
 # read default parameters and override with custom ones
-def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, 
-    pos_x, pos_y, target_w, target_h):
+def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, pos_x, pos_y, target_w, target_h):
     num_frames = np.size(frame_name_list)
     # stores tracker's output for evaluation
     bboxes = np.zeros((num_frames,4))
@@ -40,10 +39,19 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz,
     min_x = hp.scale_min * x_sz
     max_x = hp.scale_max * x_sz
 
-    image_name, image, templates_z, scores = siam.build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, design, env)
+    filename, image, templates_z, scores = siam.build_tracking_graph(final_score_sz, design, env)
+
+    # run_metadata = tf.RunMetadata()
+    # run_opts = {
+    #     'options': tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE),
+    #     'run_metadata': run_metadata,
+    # }
+
+    run_opts = {}
 
     #### START TRACKING WITHIN A TF SESSION ####
-    with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+    # with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
+    with tf.Session() as sess:
         tf.global_variables_initializer().run()
         # Coordinate the loading of image files.
         coord = tf.train.Coordinator()
@@ -53,10 +61,11 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz,
         bboxes[0,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
                 
 
-        image_name_, image_, templates_z_ = sess.run([image_name, image, templates_z], feed_dict={
-                                                                            siam.pos_x_ph: pos_x,
-                                                                            siam.pos_y_ph: pos_y,
-                                                                            siam.z_sz_ph: z_sz})
+        image_, templates_z_ = sess.run([image, templates_z], feed_dict={
+                                                                        siam.pos_x_ph: pos_x,
+                                                                        siam.pos_y_ph: pos_y,
+                                                                        siam.z_sz_ph: z_sz,
+                                                                        filename: frame_name_list[0]})
         new_templates_z_ = templates_z_
         
         if run.visualization:
@@ -65,20 +74,21 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz,
         t_start = time.time()
 
         # Get an image from the queue
-        for i in range(evaluation.start_frame+1, 10):        
+        for i in range(evaluation.start_frame+1, num_frames):        
             scaled_exemplar = z_sz * scale_factors
             scaled_search_area = x_sz * scale_factors
             scaled_target_w = target_w * scale_factors
             scaled_target_h = target_h * scale_factors
             
-            image_name_, image_, scores_ = sess.run([image_name, image, scores], feed_dict={
+            image_, scores_ = sess.run([image, scores], feed_dict={
                                     siam.pos_x_ph: pos_x,
                                     siam.pos_y_ph: pos_y,
                                     siam.x_sz0_ph: scaled_search_area[0],
                                     siam.x_sz1_ph: scaled_search_area[1],
                                     siam.x_sz2_ph: scaled_search_area[2],
-                                    templates_z: np.squeeze(templates_z_)
-                                    })
+                                    templates_z: np.squeeze(templates_z_),
+                                    filename: frame_name_list[i],
+                                    }, **run_opts)
 
             scores_ = np.squeeze(scores_)
             # penalize change of scale
@@ -124,7 +134,13 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz,
         coord.request_stop()
         coord.join(threads) 
 
+        # from tensorflow.python.client import timeline
+        # trace = timeline.Timeline(step_stats=run_metadata.step_stats)
+        # trace_file = open('timeline-search.ctf.json', 'w')
+        # trace_file.write(trace.generate_chrome_trace_format())
+
     plt.close('all')
+
     return bboxes, speed
 
 def _update_target_position(pos_x, pos_y, score, final_score_sz, tot_stride, search_sz, response_up, x_sz):

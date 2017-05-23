@@ -25,23 +25,25 @@ _bnorm_adjust = True
 assert len(_conv_stride) == len(_filtergroup_yn) == len(_bnorm_yn) == len(_relu_yn) == len(_pool_stride), ('These arrays of flags should have same length')
 assert all(_conv_stride) >= True, ('The number of conv layers is assumed to define the depth of the network')
 _num_layers = len(_conv_stride)
-###################################################################
 
-def build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, design, env):
+def build_tracking_graph(final_score_sz, design, env):
     # Make a queue of file names
-    filename_queue = tf.train.string_input_producer(frame_name_list, shuffle=False, capacity=num_frames)
-    image_reader = tf.WholeFileReader()
-    # Read a whole file from the queue
-    image_name, image_file = image_reader.read(filename_queue)
+    # filename_queue = tf.train.string_input_producer(frame_name_list, shuffle=False, capacity=num_frames)
+    # image_reader = tf.WholeFileReader()
+    # # Read a whole file from the queue
+    # image_name, image_file = image_reader.read(filename_queue)
+
+    filename = tf.placeholder(tf.string, [], name='filename')
+    image_file = tf.read_file(filename)
     # Decode the image as a JPEG file, this will turn it into a Tensor
     image = tf.cast(tf.image.decode_jpeg(image_file), tf.int32)
-    # used to pad the crops
-    avg_chan = tf.cast(tf.reduce_mean(image, axis=(0,1)), tf.int32)
-    # pad with avg color if necessary
-    frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph, avg_chan);
+    frame_sz = tf.cast(tf.shape(image), tf.float64)
+    # frame_sz[1], frame_sz[0] = frame_sz[0], frame_sz[1]
+    # pad with if necessary
+    frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph);
     # extract tensor of z_crops (all identical)
     z_crops = extract_crops_z(frame_padded_z, npad_z, pos_x_ph, pos_y_ph, z_sz_ph, design.exemplar_sz)
-    frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph, avg_chan);
+    frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph);
     # extract tensor of x_crops (3 scales)
     x_crops = extract_crops_x(frame_padded_x, npad_x, pos_x_ph, pos_y_ph, x_sz0_ph, x_sz1_ph, x_sz2_ph, design.search_sz)
     # use crops as input of (MatConvnet imported) pre-trained fully-convolutional Siamese net
@@ -52,7 +54,7 @@ def build_tracking_graph(frame_name_list, num_frames, frame_sz, final_score_sz, 
     scores = _match_templates(templates_z, templates_x, p_names_list, p_val_list)
     # upsample the score maps
     scores_up = tf.image.resize_images(scores, [final_score_sz, final_score_sz])
-    return image_name, image, templates_z, scores_up
+    return filename, image, templates_z, scores_up
 
 # import pretrained Siamese network from matconvnet
 def _create_siamese(net_path, net_x, net_z):
