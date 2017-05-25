@@ -17,14 +17,13 @@ from src.visualization import show_frame, show_crops, show_scores
 #os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
 
 # read default parameters and override with custom ones
-def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, pos_x, pos_y, target_w, target_h):
+def tracker(hp, evaluation, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores):
     num_frames = np.size(frame_name_list)
     # stores tracker's output for evaluation
     bboxes = np.zeros((num_frames,4))
 
     scale_factors = hp.scale_step**np.linspace(-np.ceil(hp.scale_num/2), np.ceil(hp.scale_num/2), hp.scale_num)
-    # cosine window to penalize large displacements
-    final_score_sz = int(hp.response_up * design.score_sz)
+    # cosine window to penalize large displacements    
     hann_1d = np.expand_dims(np.hanning(final_score_sz), axis=0)
     penalty = np.transpose(hann_1d) * hann_1d
     penalty = penalty / np.sum(penalty)
@@ -38,8 +37,6 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, pos_x, 
     max_z = hp.scale_max * z_sz
     min_x = hp.scale_min * x_sz
     max_x = hp.scale_max * x_sz
-
-    filename, image, templates_z, scores = siam.build_tracking_graph(final_score_sz, design, env)
 
     # run_metadata = tf.RunMetadata()
     # run_opts = {
@@ -58,8 +55,7 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, pos_x, 
         threads = tf.train.start_queue_runners(coord=coord)
         
         # save first frame position (from ground-truth)
-        bboxes[0,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
-                
+        bboxes[0,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h                
 
         image_, templates_z_ = sess.run([image, templates_z], feed_dict={
                                                                         siam.pos_x_ph: pos_x,
@@ -108,8 +104,7 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, pos_x, 
             pos_x, pos_y = _update_target_position(pos_x, pos_y, score_, final_score_sz, design.tot_stride, design.search_sz, hp.response_up, x_sz)
             # convert <cx,cy,w,h> to <x,y,w,h> and save output
             bboxes[i,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
-            print 'Frame '+str(i)+': ('+str(bboxes[i,0])+', '+str(bboxes[i,1])+', '+str(bboxes[i,2])+', '+str(bboxes[i,3])+')'
-            
+            # print 'Frame '+str(i)+': ('+str(bboxes[i,0])+', '+str(bboxes[i,1])+', '+str(bboxes[i,2])+', '+str(bboxes[i,3])+')'            
             # update the target representation with a rolling average
             if hp.z_lr>0:
                 new_templates_z_ = sess.run([templates_z], feed_dict={
@@ -129,7 +124,7 @@ def tracker(hp, evaluation, run, env, design, frame_name_list, frame_sz, pos_x, 
 
         t_elapsed = time.time() - t_start
         speed = (num_frames-evaluation.start_frame+1)/t_elapsed
-        print 'Speed: '+str(speed)
+
         # Finish off the filename queue coordinator.
         coord.request_stop()
         coord.join(threads) 

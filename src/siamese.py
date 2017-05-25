@@ -38,12 +38,13 @@ def build_tracking_graph(final_score_sz, design, env):
     # Decode the image as a JPEG file, this will turn it into a Tensor
     image = tf.cast(tf.image.decode_jpeg(image_file), tf.int32)
     frame_sz = tf.cast(tf.shape(image), tf.float64)
-    # frame_sz[1], frame_sz[0] = frame_sz[0], frame_sz[1]
+    # used to pad the crops
+    avg_chan = tf.cast(tf.reduce_mean(image, axis=(0,1)), tf.int32)
     # pad with if necessary
-    frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph);
-    # extract tensor of z_crops (all identical)
+    frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph, avg_chan);
+    # extract tensor of z_crops
     z_crops = extract_crops_z(frame_padded_z, npad_z, pos_x_ph, pos_y_ph, z_sz_ph, design.exemplar_sz)
-    frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph);
+    frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph, avg_chan);
     # extract tensor of x_crops (3 scales)
     x_crops = extract_crops_x(frame_padded_x, npad_x, pos_x_ph, pos_y_ph, x_sz0_ph, x_sz1_ph, x_sz2_ph, design.search_sz)
     # use crops as input of (MatConvnet imported) pre-trained fully-convolutional Siamese net
@@ -102,6 +103,8 @@ def _create_siamese(net_path, net_x, net_z):
             print '\t\tMAX-POOL: size '+str(_pool_sz)+ ' and stride '+str(_pool_stride[i])
             net_x = tf.nn.max_pool(net_x, [1,_pool_sz,_pool_sz,1], strides=[1,_pool_stride[i],_pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
             net_z = tf.nn.max_pool(net_z, [1,_pool_sz,_pool_sz,1], strides=[1,_pool_stride[i],_pool_stride[i],1], padding='VALID', name='pool'+str(i+1))
+
+    print
 
     return net_z, net_x, params_names_list, params_values_list
 
