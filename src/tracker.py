@@ -99,6 +99,7 @@ def tracker(hp, evaluation, run, design, frame_name_list, pos_x, pos_y, target_w
             # select response with new_scale_id
             score_ = scores_[new_scale_id,:,:]
             score_ = score_ - np.min(score_)
+            score_ = score_/np.sum(score_)
             # apply displacement penalty
             score_ = (1-hp.window_influence)*score_ + hp.window_influence*penalty
             pos_x, pos_y = _update_target_position(pos_x, pos_y, score_, final_score_sz, design.tot_stride, design.search_sz, hp.response_up, x_sz)
