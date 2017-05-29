@@ -17,7 +17,7 @@ from src.visualization import show_frame, show_crops, show_scores
 #os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
 
 # read default parameters and override with custom ones
-def tracker(hp, evaluation, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores):
+def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, start_frame):
     num_frames = np.size(frame_name_list)
     # stores tracker's output for evaluation
     bboxes = np.zeros((num_frames,4))
@@ -70,7 +70,7 @@ def tracker(hp, evaluation, run, design, frame_name_list, pos_x, pos_y, target_w
         t_start = time.time()
 
         # Get an image from the queue
-        for i in range(evaluation.start_frame+1, num_frames):        
+        for i in range(1, num_frames):        
             scaled_exemplar = z_sz * scale_factors
             scaled_search_area = x_sz * scale_factors
             scaled_target_w = target_w * scale_factors
@@ -124,7 +124,7 @@ def tracker(hp, evaluation, run, design, frame_name_list, pos_x, pos_y, target_w
                 show_frame(image_, bboxes[i,:], 1)        
 
         t_elapsed = time.time() - t_start
-        speed = (num_frames-evaluation.start_frame+1)/t_elapsed
+        speed = num_frames/t_elapsed
 
         # Finish off the filename queue coordinator.
         coord.request_stop()

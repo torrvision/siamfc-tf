@@ -30,15 +30,22 @@ def main():
 		videos_list = [v for v in os.listdir(dataset_folder)]
 		videos_list.sort()
 		nv = np.size(videos_list)
-		speed = np.zeros(nv)
-		ious = np.zeros(nv)
-		lengths = np.zeros(nv)
-		for i in range(nv):
-			gt, frame_name_list, frame_sz, pos_x, pos_y, target_w, target_h  = _init_video(env, evaluation, videos_list[i])
-			bboxes, speed[i] = tracker(hp, evaluation, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores)
-			lengths[i], ious[i] = _compile_results(gt, bboxes, videos_list[i])
-			print str(i)+' -- '+videos_list[i]+' -- IOU: '+("%.2f" % ious[i])+' -- Speed: '+("%.2f" % speed[i])+' --'
-			print
+		speed = np.zeros(nv*evaluation.n_subseq)
+		ious = np.zeros(nv*evaluation.n_subseq)
+		lengths = np.zeros(nv*evaluation.n_subseq)
+		for i in range(nv):			
+			gt, frame_name_list, frame_sz, n_frames = _init_video(env, evaluation, videos_list[i])
+			starts = np.linspace(0, n_frames, evaluation.n_subseq+1)
+			starts = starts[0:evaluation.n_subseq]
+			for j in range(evaluation.n_subseq):
+				start_frame = int(starts[j])
+				gt_ = gt[start_frame:, :]
+				frame_name_list_ = frame_name_list[start_frame:]
+				pos_x, pos_y, target_w, target_h = region_to_bbox(gt_[0])
+				bboxes, speed[i*evaluation.n_subseq+j] = tracker(hp, run, design, frame_name_list_, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, start_frame)
+				lengths[i*evaluation.n_subseq+j], ious[i*evaluation.n_subseq+j] = _compile_results(gt_, bboxes, videos_list[i])
+				print str(i)+' -- '+videos_list[i]+' -- IOU: '+("%.2f" % ious[i*evaluation.n_subseq+j])+' -- Speed: '+("%.2f" % speed[i*evaluation.n_subseq+j])+' --'
+				print
 
 		tot_frames = np.sum(lengths)
 		mean_iou = np.sum(ious*lengths)/tot_frames
@@ -48,8 +55,9 @@ def main():
 		print
 
 	else:
-		gt, frame_name_list, frame_sz, pos_x, pos_y, target_w, target_h = _init_video(env, evaluation, evaluation.video)
-		bboxes, speed = tracker(hp, evaluation, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores)
+		gt, frame_name_list, _, _ = _init_video(env, evaluation, evaluation.video)
+		pos_x, pos_y, target_w, target_h = region_to_bbox(gt[evaluation.start_frame])
+		bboxes, speed = tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, evaluation.start_frame)
 		_, iou = _compile_results(gt, bboxes, evaluation.video)
 		print evaluation.video+' -- IOU: '+("%.2f" % iou)+' -- Speed: '+("%.2f" % speed)+' --'
 
@@ -79,11 +87,10 @@ def _init_video(env, evaluation, video):
 	    # read the initialization from ground truth
 	    gt_file = os.path.join(video_folder, 'groundtruth.txt')
 	    gt = np.genfromtxt(gt_file, delimiter=',')
-	    assert len(gt) == len(frame_name_list), ('Number of frames and number of GT lines should be equal.')
-	    ## tracker's state initializations, bbox is in format <cx,cy,w,h>
-	    pos_x, pos_y, target_w, target_h = region_to_bbox(gt[evaluation.start_frame])
+	    n_frames = len(frame_name_list)
+	    assert n_frames == len(gt), ('Number of frames and number of GT lines should be equal.')
 
-	    return gt, frame_name_list, frame_sz, pos_x, pos_y, target_w, target_h
+	    return gt, frame_name_list, frame_sz, n_frames
 
 def _compute_iou(boxA, boxB):	
 	# determine the (x, y)-coordinates of the intersection rectangle	

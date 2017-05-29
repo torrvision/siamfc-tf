@@ -1,6 +1,5 @@
 {
-	"TRE_subseq": 3,
-	"TRE_th_points": 101,
+	"n_subseq": 1,
 	"stop_on_failure": 0,
 	"dataset": "validation",
 	"video": "vot2016_bag",
