@@ -3,4 +3,4 @@ pretrained/
 *.ipynb_checkpoints
 *.pyc
 *.swp
-notebooks/logs/*
+notebooks/*
