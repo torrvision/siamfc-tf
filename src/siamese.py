@@ -42,9 +42,11 @@ def build_tracking_graph(final_score_sz, design, env):
     avg_chan = tf.cast(tf.reduce_mean(image, axis=(0,1)), tf.int32)
     # pad with if necessary
     frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph, avg_chan);
+    frame_padded_z = tf.cast(frame_padded_z, tf.float32)
     # extract tensor of z_crops
     z_crops = extract_crops_z(frame_padded_z, npad_z, pos_x_ph, pos_y_ph, z_sz_ph, design.exemplar_sz)
     frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph, avg_chan);
+    frame_padded_x = tf.cast(frame_padded_x, tf.float32)
     # extract tensor of x_crops (3 scales)
     x_crops = extract_crops_x(frame_padded_x, npad_x, pos_x_ph, pos_y_ph, x_sz0_ph, x_sz1_ph, x_sz2_ph, design.search_sz)
     # use crops as input of (MatConvnet imported) pre-trained fully-convolutional Siamese net

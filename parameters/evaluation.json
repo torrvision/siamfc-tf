@@ -1,5 +1,5 @@
 {
-	"n_subseq": 1,
+	"n_subseq": 3,
 	"stop_on_failure": 0,
 	"dataset": "validation",
 	"video": "vot2016_bag",
