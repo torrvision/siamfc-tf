@@ -13,8 +13,8 @@ def region_to_bbox(region, center=True):
 def _rect(region, center):
     
     if center:
-        x = region[0]
-        y = region[1]
+        x = region[0] - 1
+        y = region[1] - 1
         w = region[2]
         h = region[3]
         cx = x+w/2

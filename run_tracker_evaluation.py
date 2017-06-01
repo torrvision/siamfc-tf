@@ -20,9 +20,14 @@ def main():
 
 	# read all default parameters and overwrite ones defined by user
 	hp,evaluation,run,env,design = parse_arguments(hp, evaluation, run)
-	final_score_sz = int(hp.response_up * design.score_sz)
+	# Set size for use with tf.image.resize_images with align_corners=True.
+	# For example,
+	#   [1 4 7] =>   [1 2 3 4 5 6 7]    (length 3*(3-1)+1)
+	# instead of
+	#	[1 4 7] => [1 1 2 3 4 5 6 7 7]  (length 3*3)
+	final_score_sz = hp.response_up*(design.score_sz-1) + 1
 	# build TF graph once for all
-	filename, image, templates_z, scores = siam.build_tracking_graph(final_score_sz, design, env)	
+	filename, image, templates_z, scores = siam.build_tracking_graph(final_score_sz, design, env)
 
 	# iterate through all videos of evaluation.dataset
 	if evaluation.video=='all':
@@ -35,7 +40,7 @@ def main():
 		lengths = np.zeros(nv*evaluation.n_subseq)
 		for i in range(nv):			
 			gt, frame_name_list, frame_sz, n_frames = _init_video(env, evaluation, videos_list[i])
-			starts = np.linspace(0, n_frames, evaluation.n_subseq+1)
+			starts = np.rint(np.linspace(0, n_frames-1, evaluation.n_subseq+1))
 			starts = starts[0:evaluation.n_subseq]
 			for j in range(evaluation.n_subseq):
 				start_frame = int(starts[j])

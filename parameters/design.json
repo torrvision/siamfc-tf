@@ -7,5 +7,6 @@
 	"search_sz": 255,
 	"score_sz": 33,
 	"tot_stride": 4,
-	"context": 0.5
+	"context": 0.5,
+	"pad_with_image_mean": true
 }

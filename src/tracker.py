@@ -7,6 +7,7 @@ import sys
 import os
 import csv
 import numpy as np
+from PIL import Image
 import time
 
 import src.siamese as siam
@@ -30,7 +31,7 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
 
     context = design.context*(target_w+target_h)
     z_sz = np.sqrt(np.prod((target_w+context)*(target_h+context)))
-    x_sz = design.search_sz/design.exemplar_sz * z_sz
+    x_sz = float(design.search_sz) / design.exemplar_sz * z_sz
 
     # thresholds to saturate patches shrinking/growing
     min_z = hp.scale_min * z_sz
@@ -63,9 +64,6 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
                                                                         siam.z_sz_ph: z_sz,
                                                                         filename: frame_name_list[0]})
         new_templates_z_ = templates_z_
-        
-        if run.visualization:
-            show_frame(image_, bboxes[0,:], 1)
 
         t_start = time.time()
 
@@ -75,17 +73,17 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
             scaled_search_area = x_sz * scale_factors
             scaled_target_w = target_w * scale_factors
             scaled_target_h = target_h * scale_factors
-            
-            image_, scores_ = sess.run([image, scores], feed_dict={
-                                    siam.pos_x_ph: pos_x,
-                                    siam.pos_y_ph: pos_y,
-                                    siam.x_sz0_ph: scaled_search_area[0],
-                                    siam.x_sz1_ph: scaled_search_area[1],
-                                    siam.x_sz2_ph: scaled_search_area[2],
-                                    templates_z: np.squeeze(templates_z_),
-                                    filename: frame_name_list[i],
-                                    }, **run_opts)
-
+            image_, scores_ = sess.run(
+                [image, scores],
+                feed_dict={
+                    siam.pos_x_ph: pos_x,
+                    siam.pos_y_ph: pos_y,
+                    siam.x_sz0_ph: scaled_search_area[0],
+                    siam.x_sz1_ph: scaled_search_area[1],
+                    siam.x_sz2_ph: scaled_search_area[2],
+                    templates_z: np.squeeze(templates_z_),
+                    filename: frame_name_list[i],
+                }, **run_opts)
             scores_ = np.squeeze(scores_)
             # penalize change of scale
             scores_[0,:,:] = hp.scale_penalty*scores_[0,:,:]
@@ -143,7 +141,8 @@ def _update_target_position(pos_x, pos_y, score, final_score_sz, tot_stride, sea
     # find location of score maximizer
     p = np.asarray(np.unravel_index(np.argmax(score), np.shape(score)))
     # displacement from the center in search area final representation ...
-    disp_in_area = p - float(final_score_sz)/2
+    center = float(final_score_sz - 1) / 2
+    disp_in_area = p - center
     # displacement from the center in instance crop
     disp_in_xcrop = disp_in_area * float(tot_stride) / response_up
     # displacement from the center in instance crop (in frame coordinates)

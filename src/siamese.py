@@ -3,9 +3,11 @@ import numpy as np
 import scipy.io
 import sys
 sys.path.append('../')
+import functools
+from PIL import Image
 import os.path
 from src.convolutional import set_convolutional
-from src.crops import extract_crops_z, extract_crops_x, pad_frame
+from src.crops import extract_crops_z, extract_crops_x, pad_frame, resize_images
 
 pos_x_ph = tf.placeholder(tf.float64)
 pos_y_ph = tf.placeholder(tf.float64)
@@ -36,16 +38,20 @@ def build_tracking_graph(final_score_sz, design, env):
     filename = tf.placeholder(tf.string, [], name='filename')
     image_file = tf.read_file(filename)
     # Decode the image as a JPEG file, this will turn it into a Tensor
-    image = tf.cast(tf.image.decode_jpeg(image_file), tf.int32)
-    frame_sz = tf.cast(tf.shape(image), tf.float64)
+    image = tf.image.decode_jpeg(image_file)
+    image = 255.0 * tf.image.convert_image_dtype(image, tf.float32)
+    frame_sz = tf.shape(image)
     # used to pad the crops
-    avg_chan = tf.cast(tf.reduce_mean(image, axis=(0,1)), tf.int32)
+    if design.pad_with_image_mean:
+        avg_chan = tf.reduce_mean(image, axis=(0,1), name='avg_chan')
+    else:
+        avg_chan = None
     # pad with if necessary
-    frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph, avg_chan);
+    frame_padded_z, npad_z = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, z_sz_ph, avg_chan)
     frame_padded_z = tf.cast(frame_padded_z, tf.float32)
     # extract tensor of z_crops
     z_crops = extract_crops_z(frame_padded_z, npad_z, pos_x_ph, pos_y_ph, z_sz_ph, design.exemplar_sz)
-    frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph, avg_chan);
+    frame_padded_x, npad_x = pad_frame(image, frame_sz, pos_x_ph, pos_y_ph, x_sz2_ph, avg_chan)
     frame_padded_x = tf.cast(frame_padded_x, tf.float32)
     # extract tensor of x_crops (3 scales)
     x_crops = extract_crops_x(frame_padded_x, npad_x, pos_x_ph, pos_y_ph, x_sz0_ph, x_sz1_ph, x_sz2_ph, design.search_sz)
@@ -56,7 +62,8 @@ def build_tracking_graph(final_score_sz, design, env):
     # compare templates via cross-correlation
     scores = _match_templates(templates_z, templates_x, p_names_list, p_val_list)
     # upsample the score maps
-    scores_up = tf.image.resize_images(scores, [final_score_sz, final_score_sz])
+    scores_up = tf.image.resize_images(scores, [final_score_sz, final_score_sz],
+        method=tf.image.ResizeMethod.BICUBIC, align_corners=True)
     return filename, image, templates_z, scores_up
 
 # import pretrained Siamese network from matconvnet
