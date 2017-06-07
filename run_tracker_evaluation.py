@@ -1,8 +1,8 @@
+from __future__ import division
 import sys
 import os
 import numpy as np
 from PIL import Image
-
 import src.siamese as siam
 from src.tracker import tracker
 from src.parse_arguments import parse_arguments
@@ -30,6 +30,7 @@ def main():
         videos_list.sort()
         nv = np.size(videos_list)
         speed = np.zeros(nv * evaluation.n_subseq)
+        precisions = np.zeros(nv * evaluation.n_subseq)
         ious = np.zeros(nv * evaluation.n_subseq)
         lengths = np.zeros(nv * evaluation.n_subseq)
         for i in range(nv):
@@ -41,22 +42,25 @@ def main():
                 gt_ = gt[start_frame:, :]
                 frame_name_list_ = frame_name_list[start_frame:]
                 pos_x, pos_y, target_w, target_h = region_to_bbox(gt_[0])
-                bboxes, speed[i * evaluation.n_subseq + j] = tracker(hp, run, design, frame_name_list_, pos_x, pos_y,
+                idx = i * evaluation.n_subseq + j
+                bboxes, speed[idx] = tracker(hp, run, design, frame_name_list_, pos_x, pos_y,
                                                                      target_w, target_h, final_score_sz, filename,
                                                                      image, templates_z, scores, start_frame)
-                lengths[i * evaluation.n_subseq + j], ious[i * evaluation.n_subseq + j] = _compile_results(gt_, bboxes,
-                                                                                                           videos_list[
-                                                                                                               i])
-                print str(i) + ' -- ' + videos_list[i] + ' -- IOU: ' + (
-                "%.2f" % ious[i * evaluation.n_subseq + j]) + ' -- Speed: ' + (
-                      "%.2f" % speed[i * evaluation.n_subseq + j]) + ' --'
+                lengths[idx], precisions[idx], ious[idx] = _compile_results(gt_, bboxes, evaluation.dist_threshold)
+                print str(i) + ' -- ' + videos_list[i] + \
+                ' -- Precision: ' + "%.2f" % precisions[idx] + \
+                ' -- IOU: ' + "%.2f" % ious[idx] + \
+                ' -- Speed: ' + "%.2f" % speed[idx] + ' --'
                 print
 
         tot_frames = np.sum(lengths)
+        mean_precision = np.sum(precisions * lengths) / tot_frames
         mean_iou = np.sum(ious * lengths) / tot_frames
         mean_speed = np.sum(speed * lengths) / tot_frames
         print '-- Overall stats (averaged per frame) on ' + str(nv) + ' videos (' + str(tot_frames) + ' frames) --'
-        print '-- IOU: ' + ("%.2f" % mean_iou) + ' -- Speed: ' + ("%.2f" % mean_speed) + ' --'
+        print ' -- Precision ' + "(%d px)" % evaluation.dist_threshold + ': ' + "%.2f" % mean_precision +\
+              ' -- IOU: ' + "%.2f" % mean_iou +\
+              ' -- Speed: ' + "%.2f" % mean_speed + ' --'
         print
 
     else:
@@ -64,23 +68,32 @@ def main():
         pos_x, pos_y, target_w, target_h = region_to_bbox(gt[evaluation.start_frame])
         bboxes, speed = tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz,
                                 filename, image, templates_z, scores, evaluation.start_frame)
-        _, iou = _compile_results(gt, bboxes, evaluation.video)
-        print evaluation.video + ' -- IOU: ' + ("%.2f" % iou) + ' -- Speed: ' + ("%.2f" % speed) + ' --'
+        _, precision, iou = _compile_results(gt, bboxes, evaluation.dist_threshold)
+        print evaluation.video + \
+              ' -- Precision ' + "(%d px)" % evaluation.dist_threshold + ': ' + "%.2f" % precision +\
+              ' -- IOU: ' + "%.2f" % iou + \
+              ' -- Speed: ' + "%.2f" % speed + ' --'
+        print
 
 
-def _compile_results(gt, bboxes, video):
+def _compile_results(gt, bboxes, dist_threshold):
     l = np.size(bboxes, 0)
     gt4 = np.zeros((l, 4))
+    new_distances = np.zeros(l)
     new_ious = np.zeros(l)
-    # np.savetxt('out/'+video+'.bboxes', bboxes, delimiter=',')
-    # np.savetxt('out/'+video+'.gt', gt, delimiter=',')
+
     for j in range(l):
         gt4[j, :] = region_to_bbox(gt[j, :], center=False)
+        new_distances[j] = _compute_distance(bboxes[j, :], gt4[j, :])
         new_ious[j] = _compute_iou(bboxes[j, :], gt4[j, :])
+        print new_ious
 
+    # what's the percentage of frame in which center displacement is inferior to given threshold? (OTB metric)
+    precision = sum(new_distances < dist_threshold)/np.size(new_distances) * 100
+    # per frame averaged intersection over union (OTB metric)
     iou = np.mean(new_ious) * 100
 
-    return l, iou
+    return l, precision, iou
 
 
 def _init_video(env, evaluation, video):
@@ -99,6 +112,19 @@ def _init_video(env, evaluation, video):
     assert n_frames == len(gt), 'Number of frames and number of GT lines should be equal.'
 
     return gt, frame_name_list, frame_sz, n_frames
+
+
+def _compute_distance(boxA, boxB):
+    print boxA
+    print boxB
+    a = np.array((boxA[0]+boxA[2]/2, boxA[1]+boxA[3]/2))
+    b = np.array((boxB[0]+boxB[2]/2, boxB[1]+boxB[3]/2))
+    dist = np.linalg.norm(a - b)
+
+    assert dist >= 0
+    assert dist != float('Inf')
+
+    return dist
 
 
 def _compute_iou(boxA, boxB):
