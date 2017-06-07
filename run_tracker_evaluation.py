@@ -12,13 +12,7 @@ from src.pprint_params import pprint_params
 def main():
 	# avoid printing TF debugging information
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-	## TODO: allow this to be passed to the main function
-	# hp = {}
-	# evaluation = {"video": "all"}
-	# run = {"visualization":0,"debug":0}
-	## read all default parameters and overwrite ones defined by user
-	# hp,evaluation,run,env,design = parse_arguments(hp, evaluation, run)
+	# TODO: allow parameters from command line or leave everything in json files?
 	hp, evaluation, run, env, design = parse_arguments()
 	# Set size for use with tf.image.resize_images with align_corners=True.
 	# For example,
