@@ -4,3 +4,4 @@ pretrained/
 *.pyc
 *.swp
 notebooks/*
+.idea

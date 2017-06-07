@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 
+
 def show_frame(frame, bbox, fig_n):
     fig = plt.figure(fig_n)
     ax = fig.add_subplot(111)
@@ -12,6 +13,7 @@ def show_frame(frame, bbox, fig_n):
     plt.show()
     plt.pause(0.001)
     plt.clf()
+
 
 def show_crops(crops, fig_n):
     fig = plt.figure(fig_n)
@@ -24,6 +26,7 @@ def show_crops(crops, fig_n):
     plt.ion()
     plt.show()
     plt.pause(0.001)
+
 
 def show_scores(scores, fig_n):
     fig = plt.figure(fig_n)

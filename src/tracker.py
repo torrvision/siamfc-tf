@@ -15,7 +15,7 @@ from src.visualization import show_frame, show_crops, show_scores
 
 
 # gpu_device = 2
-#os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
+# os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
 
 # read default parameters and override with custom ones
 def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, start_frame):
@@ -47,7 +47,6 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
 
     run_opts = {}
 
-    #### START TRACKING WITHIN A TF SESSION ####
     # with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
     with tf.Session() as sess:
         tf.global_variables_initializer().run()
@@ -103,7 +102,6 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
             pos_x, pos_y = _update_target_position(pos_x, pos_y, score_, final_score_sz, design.tot_stride, design.search_sz, hp.response_up, x_sz)
             # convert <cx,cy,w,h> to <x,y,w,h> and save output
             bboxes[i,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
-            # print 'Frame '+str(i)+': ('+str(bboxes[i,0])+', '+str(bboxes[i,1])+', '+str(bboxes[i,2])+', '+str(bboxes[i,3])+')'            
             # update the target representation with a rolling average
             if hp.z_lr>0:
                 new_templates_z_ = sess.run([templates_z], feed_dict={
@@ -136,6 +134,7 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
     plt.close('all')
 
     return bboxes, speed
+
 
 def _update_target_position(pos_x, pos_y, score, final_score_sz, tot_stride, search_sz, response_up, x_sz):
     # find location of score maximizer

@@ -2,12 +2,10 @@ import tensorflow as tf
 import numpy as np
 import scipy.io
 import sys
-sys.path.append('../')
-import functools
-from PIL import Image
 import os.path
 from src.convolutional import set_convolutional
 from src.crops import extract_crops_z, extract_crops_x, pad_frame, resize_images
+sys.path.append('../')
 
 pos_x_ph = tf.placeholder(tf.float64)
 pos_y_ph = tf.placeholder(tf.float64)
@@ -27,6 +25,7 @@ _bnorm_adjust = True
 assert len(_conv_stride) == len(_filtergroup_yn) == len(_bnorm_yn) == len(_relu_yn) == len(_pool_stride), ('These arrays of flags should have same length')
 assert all(_conv_stride) >= True, ('The number of conv layers is assumed to define the depth of the network')
 _num_layers = len(_conv_stride)
+
 
 def build_tracking_graph(final_score_sz, design, env):
     # Make a queue of file names
@@ -65,6 +64,7 @@ def build_tracking_graph(final_score_sz, design, env):
     scores_up = tf.image.resize_images(scores, [final_score_sz, final_score_sz],
         method=tf.image.ResizeMethod.BICUBIC, align_corners=True)
     return filename, image, templates_z, scores_up
+
 
 # import pretrained Siamese network from matconvnet
 def _create_siamese(net_path, net_x, net_z):
@@ -117,10 +117,11 @@ def _create_siamese(net_path, net_x, net_z):
 
     return net_z, net_x, params_names_list, params_values_list
 
+
 def _import_from_matconvnet(net_path):
     mat = scipy.io.loadmat(net_path)
     net_dot_mat = mat.get('net')
-    ## organize parameters to import
+    # organize parameters to import
     params = net_dot_mat['params']
     params = params[0][0]
     params_names = params['name'][0]
@@ -129,14 +130,16 @@ def _import_from_matconvnet(net_path):
     params_values_list = [params_values[p] for p in xrange(params_values.size)]
     return params_names_list, params_values_list
 
+
 # find all parameters matching the codename (there should be only one)
 def _find_params(x, params):
     matching = [s for s in params if x in s]
     assert len(matching)==1, ('Ambiguous param name found')    
     return matching
 
+
 def _match_templates(net_z, net_x, params_names_list, params_values_list):
-    ## finalize network
+    # finalize network
     # z, x are [B, H, W, C]
     net_z = tf.transpose(net_z, perm=[1,2,0,3])
     net_x = tf.transpose(net_x, perm=[1,2,0,3])
@@ -159,10 +162,10 @@ def _match_templates(net_z, net_x, params_names_list, params_values_list):
         bn_moments = params_values_list[params_names_list.index('fin_adjust_bnx')]
         bn_moving_mean = bn_moments[:,0]
         bn_moving_variance = bn_moments[:,1]**2
-        net_final = tf.layers.batch_normalization(net_final, beta_initializer=tf.constant_initializer(bn_beta), \
-                                                gamma_initializer=tf.constant_initializer(bn_gamma), \
-                                                moving_mean_initializer=tf.constant_initializer(bn_moving_mean), \
-                                                moving_variance_initializer=tf.constant_initializer(bn_moving_variance), \
+        net_final = tf.layers.batch_normalization(net_final, beta_initializer=tf.constant_initializer(bn_beta),
+                                                gamma_initializer=tf.constant_initializer(bn_gamma),
+                                                moving_mean_initializer=tf.constant_initializer(bn_moving_mean),
+                                                moving_variance_initializer=tf.constant_initializer(bn_moving_variance),
                                                 training=False, trainable=False)
 
     return net_final

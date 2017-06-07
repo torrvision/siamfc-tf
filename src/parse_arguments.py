@@ -1,6 +1,7 @@
 import json
 from collections import namedtuple
 
+
 def parse_arguments(in_hp={}, in_evaluation={}, in_run={}):
 
     with open('parameters/hyperparams.json') as json_file:
