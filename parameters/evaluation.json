@@ -1,7 +1,8 @@
 {
 	"n_subseq": 3,
+	"dist_threshold": 20,
 	"stop_on_failure": 0,
 	"dataset": "validation",
-	"video": "vot2016_bag",
+	"video": "all",
 	"start_frame": 0
 }
