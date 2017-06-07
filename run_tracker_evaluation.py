@@ -13,13 +13,13 @@ def main():
 	# avoid printing TF debugging information
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-	# TODO: this will be passed to the main function
-	hp = {}
-	evaluation = {"video": "all"}
-	run = {"visualization":0,"debug":0}
-
-	# read all default parameters and overwrite ones defined by user
-	hp,evaluation,run,env,design = parse_arguments(hp, evaluation, run)
+	## TODO: allow this to be passed to the main function
+	# hp = {}
+	# evaluation = {"video": "all"}
+	# run = {"visualization":0,"debug":0}
+	## read all default parameters and overwrite ones defined by user
+	# hp,evaluation,run,env,design = parse_arguments(hp, evaluation, run)
+	hp, evaluation, run, env, design = parse_arguments()
 	# Set size for use with tf.image.resize_images with align_corners=True.
 	# For example,
 	#   [1 4 7] =>   [1 2 3 4 5 6 7]    (length 3*(3-1)+1)
