@@ -86,7 +86,6 @@ def _compile_results(gt, bboxes, dist_threshold):
         gt4[j, :] = region_to_bbox(gt[j, :], center=False)
         new_distances[j] = _compute_distance(bboxes[j, :], gt4[j, :])
         new_ious[j] = _compute_iou(bboxes[j, :], gt4[j, :])
-        print new_ious
 
     # what's the percentage of frame in which center displacement is inferior to given threshold? (OTB metric)
     precision = sum(new_distances < dist_threshold)/np.size(new_distances) * 100
@@ -115,8 +114,6 @@ def _init_video(env, evaluation, video):
 
 
 def _compute_distance(boxA, boxB):
-    print boxA
-    print boxB
     a = np.array((boxA[0]+boxA[2]/2, boxA[1]+boxA[3]/2))
     b = np.array((boxB[0]+boxB[2]/2, boxB[1]+boxB[3]/2))
     dist = np.linalg.norm(a - b)

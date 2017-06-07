@@ -22,6 +22,8 @@ def _rect(region, center):
         cy = y+h/2
         return cx, cy, w, h
     else:
+        region[0] -= 1
+        region[1] -= 1
         return region
 
 
