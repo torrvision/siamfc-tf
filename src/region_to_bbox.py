@@ -41,7 +41,7 @@ def _poly(region, center):
     h = s * (y2 - y1) + 1
 
     if center:
-        return cx, cy, w, h
+        return cx-1, cy-1, w, h
     else:
-        return cx-w/2, cy-h/2, w, h
+        return cx-1-w/2, cy-1-h/2, w, h
 
