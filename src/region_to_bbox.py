@@ -14,16 +14,16 @@ def region_to_bbox(region, center=True):
 def _rect(region, center):
     
     if center:
-        x = region[0] - 1
-        y = region[1] - 1
+        x = region[0]
+        y = region[1]
         w = region[2]
         h = region[3]
         cx = x+w/2
         cy = y+h/2
         return cx, cy, w, h
     else:
-        region[0] -= 1
-        region[1] -= 1
+        #region[0] -= 1
+        #region[1] -= 1
         return region
 
 
@@ -41,7 +41,7 @@ def _poly(region, center):
     h = s * (y2 - y1) + 1
 
     if center:
-        return cx-1, cy-1, w, h
+        return cx, cy, w, h
     else:
-        return cx-1-w/2, cy-1-h/2, w, h
+        return cx-w/2, cy-h/2, w, h
 
