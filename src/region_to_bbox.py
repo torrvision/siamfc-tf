@@ -10,7 +10,7 @@ def region_to_bbox(region, center=True):
     else:
         return _poly(region, center)
 
-
+# we assume the grountruth bounding boxes are saved with 0-indexing
 def _rect(region, center):
     
     if center:
