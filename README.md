@@ -4,6 +4,7 @@ TensorFlow port of the tracking method described in the paper [*Fully-Convolutio
 In particular, it is the improved version presented as baseline in [*End-to-end representation learning for Correlation Filter based tracking*](www.robots.ox.ac.uk/~luca/cfnet.html), which achieves state-of-the-art performance at high framerate. The other methods presented in the paper (similar performance, shallower network) haven't been ported yet.
 
 **Note1**: results should be similar (i.e. slightly better or worse) than our MatConvNet implementation. However, for direct comparison please refer to the precomputed results available in the project pages or to the original code, which you can find pinned in [my GitHub](https://github.com/bertinetto).
+
 **Note2**: at the moment this code only allows to use a pretrained net in forward mode.
 
 ## Settings things up with virtualenv
@@ -59,7 +60,6 @@ If you find our work useful, please consider citing
 ```
 
 ## License
-
-This project is licensed under the ... license and it is free to use for Research purposes.
-Please contact us for other use.
+This code can be freely used for personal, academic, or educational purposes.
+Please contact us for commercial use.
 
