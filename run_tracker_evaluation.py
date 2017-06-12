@@ -35,14 +35,15 @@ def main():
         ious = np.zeros(nv * evaluation.n_subseq)
         lengths = np.zeros(nv * evaluation.n_subseq)
         for i in range(nv):
-            gt, frame_name_list, frame_sz, n_frames = _init_video(env, evaluation, videos_list[i])
+            gt, init, frame_name_list, frame_sz, n_frames = _init_video(env, evaluation, videos_list[i])
             starts = np.rint(np.linspace(0, n_frames - 1, evaluation.n_subseq + 1))
             starts = starts[0:evaluation.n_subseq]
             for j in range(evaluation.n_subseq):
                 start_frame = int(starts[j])
                 gt_ = gt[start_frame:, :]
+                init_ = init[start_frame:, :]
                 frame_name_list_ = frame_name_list[start_frame:]
-                pos_x, pos_y, target_w, target_h = region_to_bbox(gt_[0])
+                pos_x, pos_y, target_w, target_h = region_to_bbox(init_[0])
                 idx = i * evaluation.n_subseq + j
                 bboxes, speed[idx] = tracker(hp, run, design, frame_name_list_, pos_x, pos_y,
                                                                      target_w, target_h, final_score_sz, filename,
@@ -68,8 +69,8 @@ def main():
         print
 
     else:
-        gt, frame_name_list, _, _ = _init_video(env, evaluation, evaluation.video)
-        pos_x, pos_y, target_w, target_h = region_to_bbox(gt[evaluation.start_frame])
+        gt, init, frame_name_list, _, _ = _init_video(env, evaluation, evaluation.video)
+        pos_x, pos_y, target_w, target_h = region_to_bbox(init[evaluation.start_frame])
         bboxes, speed = tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz,
                                 filename, image, templates_z, scores, evaluation.start_frame)
         _, precision, precision_auc, iou = _compile_results(gt, bboxes, evaluation.dist_threshold)
@@ -123,13 +124,16 @@ def _init_video(env, evaluation, video):
         frame_sz = np.asarray(img.size)
         frame_sz[1], frame_sz[0] = frame_sz[0], frame_sz[1]
 
-    # read the initialization from ground truth
+    # read the ground truth and the random initialization
     gt_file = os.path.join(video_folder, 'groundtruth.txt')
     gt = np.genfromtxt(gt_file, delimiter=',')
+    init_file = os.path.join(video_folder, 'init.sigma0.txt')
+    init = np.genfromtxt(init_file, delimiter=',')    
     n_frames = len(frame_name_list)
     assert n_frames == len(gt), 'Number of frames and number of GT lines should be equal.'
+    assert n_frames == len(init), 'Number of frames and number of random init lines should be equal.'
 
-    return gt, frame_name_list, frame_sz, n_frames
+    return gt, init, frame_name_list, frame_sz, n_frames
 
 
 def _compute_distance(boxA, boxB):
