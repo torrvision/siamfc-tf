@@ -31,6 +31,7 @@ def main():
         nv = np.size(videos_list)
         speed = np.zeros(nv * evaluation.n_subseq)
         precisions = np.zeros(nv * evaluation.n_subseq)
+        precisions_auc = np.zeros(nv * evaluation.n_subseq)
         ious = np.zeros(nv * evaluation.n_subseq)
         lengths = np.zeros(nv * evaluation.n_subseq)
         for i in range(nv):
@@ -46,19 +47,22 @@ def main():
                 bboxes, speed[idx] = tracker(hp, run, design, frame_name_list_, pos_x, pos_y,
                                                                      target_w, target_h, final_score_sz, filename,
                                                                      image, templates_z, scores, start_frame)
-                lengths[idx], precisions[idx], ious[idx] = _compile_results(gt_, bboxes, evaluation.dist_threshold)
+                lengths[idx], precisions[idx], precisions_auc[idx], ious[idx] = _compile_results(gt_, bboxes, evaluation.dist_threshold)
                 print str(i) + ' -- ' + videos_list[i] + \
                 ' -- Precision: ' + "%.2f" % precisions[idx] + \
+                ' -- Precisions AUC: ' + "%.2f" % precisions_auc[idx] + \
                 ' -- IOU: ' + "%.2f" % ious[idx] + \
                 ' -- Speed: ' + "%.2f" % speed[idx] + ' --'
                 print
 
         tot_frames = np.sum(lengths)
         mean_precision = np.sum(precisions * lengths) / tot_frames
+        mean_precision_auc = np.sum(precisions_auc * lengths) / tot_frames
         mean_iou = np.sum(ious * lengths) / tot_frames
         mean_speed = np.sum(speed * lengths) / tot_frames
         print '-- Overall stats (averaged per frame) on ' + str(nv) + ' videos (' + str(tot_frames) + ' frames) --'
         print ' -- Precision ' + "(%d px)" % evaluation.dist_threshold + ': ' + "%.2f" % mean_precision +\
+              ' -- Precisions AUC: ' + "%.2f" % mean_precision_auc +\
               ' -- IOU: ' + "%.2f" % mean_iou +\
               ' -- Speed: ' + "%.2f" % mean_speed + ' --'
         print
@@ -68,9 +72,10 @@ def main():
         pos_x, pos_y, target_w, target_h = region_to_bbox(gt[evaluation.start_frame])
         bboxes, speed = tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz,
                                 filename, image, templates_z, scores, evaluation.start_frame)
-        _, precision, iou = _compile_results(gt, bboxes, evaluation.dist_threshold)
+        _, precision, precision_auc, iou = _compile_results(gt, bboxes, evaluation.dist_threshold)
         print evaluation.video + \
               ' -- Precision ' + "(%d px)" % evaluation.dist_threshold + ': ' + "%.2f" % precision +\
+              ' -- Precision AUC: ' + "%.2f" % precision_auc + \
               ' -- IOU: ' + "%.2f" % iou + \
               ' -- Speed: ' + "%.2f" % speed + ' --'
         print
@@ -81,18 +86,32 @@ def _compile_results(gt, bboxes, dist_threshold):
     gt4 = np.zeros((l, 4))
     new_distances = np.zeros(l)
     new_ious = np.zeros(l)
+    n_thresholds = 50
+    precisions_ths = np.zeros(n_thresholds)
 
-    for j in range(l):
-        gt4[j, :] = region_to_bbox(gt[j, :], center=False)
-        new_distances[j] = _compute_distance(bboxes[j, :], gt4[j, :])
-        new_ious[j] = _compute_iou(bboxes[j, :], gt4[j, :])
+    for i in range(l):
+        gt4[i, :] = region_to_bbox(gt[i, :], center=False)
+        new_distances[i] = _compute_distance(bboxes[i, :], gt4[i, :])
+        new_ious[i] = _compute_iou(bboxes[i, :], gt4[i, :])
 
     # what's the percentage of frame in which center displacement is inferior to given threshold? (OTB metric)
     precision = sum(new_distances < dist_threshold)/np.size(new_distances) * 100
+
+    # find above result for many thresholds, then report the AUC
+    thresholds = np.linspace(0, 25, n_thresholds+1)
+    thresholds = thresholds[-n_thresholds:]
+    # reverse it so that higher values of precision goes at the beginning
+    thresholds = thresholds[::-1]
+    for i in range(n_thresholds):
+        precisions_ths[i] = sum(new_distances < thresholds[i])/np.size(new_distances)
+
+    # integrate over the thresholds
+    precision_auc = np.trapz(precisions_ths)    
+
     # per frame averaged intersection over union (OTB metric)
     iou = np.mean(new_ious) * 100
 
-    return l, precision, iou
+    return l, precision, precision_auc, iou
 
 
 def _init_video(env, evaluation, video):
