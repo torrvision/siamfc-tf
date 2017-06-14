@@ -20,7 +20,7 @@ In particular, it is the improved version presented as baseline in [*End-to-end 
 1) Install the required packages
 `sudo pip install -r requirements.txt`
 1) `mkdir pretrained data`
-1) Download the [pretrained networks](https://drive.google.com/file/d/0B7Awq_aAemXQSnhBVW5LNmNvUU0/view?pli=1) in `pretrained` and unzip the archive (we will only use `baseline-conv5_e55.mat`)
+1) Download the [pretrained networks](https://bit.ly/cfnet_networks) in `pretrained` and unzip the archive (we will only use `baseline-conv5_e55.mat`)
 1) Download [video sequences](https://drive.google.com/file/d/0B7Awq_aAemXQSnhBVW5LNmNvUU0/view) in `data` and unzip the archive.
 
 
