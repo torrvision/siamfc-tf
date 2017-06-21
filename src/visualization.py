@@ -1,18 +1,17 @@
 import numpy as np
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
+import cv2
 
 
 def show_frame(frame, bbox, fig_n):
-    fig = plt.figure(fig_n)
-    ax = fig.add_subplot(111)
-    r = patches.Rectangle((bbox[0],bbox[1]), bbox[2], bbox[3], linewidth=2, edgecolor='r', fill=False)
-    ax.imshow(np.uint8(frame))
-    ax.add_patch(r)
-    plt.ion()
-    plt.show()
-    plt.pause(0.001)
-    plt.clf()
+    #Adjust Color Channels of frame
+    frame_adjusted = np.ndarray(shape=(720,1280,3), dtype=np.dtype(np.uint8))
+    frame_adjusted[:,:,:] = frame[:,:,2::-1]
+    x, y, w, h = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
+    cv2.rectangle(frame_adjusted, (x, y), (x+w,y+h), (0,0,255), 4, 8, 0)
+    cv2.imshow('image',frame_adjusted)
+    cv2.waitKey(1)
 
 
 def show_crops(crops, fig_n):
