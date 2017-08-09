@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 def show_frame(frame, bbox, fig_n):
     fig = plt.figure(fig_n)
     ax = fig.add_subplot(111)
+    print(bbox)
     r = patches.Rectangle((bbox[0],bbox[1]), bbox[2], bbox[3], linewidth=2, edgecolor='r', fill=False)
     ax.imshow(np.uint8(frame))
     ax.add_patch(r)
