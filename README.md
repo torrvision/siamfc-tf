@@ -1,3 +1,7 @@
+# Kaliber Labs' Fork of SiamFC With Added Goodness!
+
+This exposes the SiamFC object tracking network via a CLI.
+
 # SiamFC - TensorFlow
 TensorFlow port of the tracking method described in the paper [*Fully-Convolutional Siamese nets for object tracking*](https://www.robots.ox.ac.uk/~luca/siamese-fc.html).
 
