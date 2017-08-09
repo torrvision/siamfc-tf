@@ -13,10 +13,6 @@ import time
 import src.siamese as siam
 from src.visualization import show_frame, show_crops, show_scores
 
-
-# gpu_device = 2
-# os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(gpu_device)
-
 # read default parameters and override with custom ones
 def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, start_frame):
     num_frames = np.size(frame_name_list)
@@ -39,12 +35,6 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
     min_x = hp.scale_min * x_sz
     max_x = hp.scale_max * x_sz
 
-    # run_metadata = tf.RunMetadata()
-    # run_opts = {
-    #     'options': tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE),
-    #     'run_metadata': run_metadata,
-    # }
-
     run_opts = {}
 
     # with tf.Session(config=tf.ConfigProto(log_device_placement=True)) as sess:
@@ -54,14 +44,17 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
         
+        #convert from centerx, centery, w, h to x,y,w,h
         # save first frame position (from ground-truth)
-        bboxes[0,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h                
+        bboxes[0,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
 
         image_, templates_z_ = sess.run([image, templates_z], feed_dict={
-                                                                        siam.pos_x_ph: pos_x,
-                                                                        siam.pos_y_ph: pos_y,
-                                                                        siam.z_sz_ph: z_sz,
-                                                                        filename: frame_name_list[0]})
+            siam.pos_x_ph: pos_x,
+            siam.pos_y_ph: pos_y,
+            siam.z_sz_ph: z_sz,
+            filename: frame_name_list[0]
+        })
+
         new_templates_z_ = templates_z_
 
         t_start = time.time()
@@ -125,11 +118,6 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
         # Finish off the filename queue coordinator.
         coord.request_stop()
         coord.join(threads) 
-
-        # from tensorflow.python.client import timeline
-        # trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-        # trace_file = open('timeline-search.ctf.json', 'w')
-        # trace_file.write(trace.generate_chrome_trace_format())
 
     plt.close('all')
 

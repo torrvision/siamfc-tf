@@ -23,7 +23,7 @@ pos_x, pos_y, target_w, target_h = args.x + args.w/2, args.y + args.h/2, args.w,
 
 def main():
     # avoid printing TF debugging information
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+#    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
     hp, evaluation, run, env, design = parse_arguments()
     final_score_sz = hp.response_up * (design.score_sz - 1) + 1
@@ -46,17 +46,17 @@ def main():
     with open("filenames", "w") as framef:
         framef.writelines("\n".join(frame_names))
 
-    print("Written file names")
-    for f, coords, index in zip(frame_names, bboxes, range(1000)):
-        img = Image.open(f)
-        img_d = ImageDraw.Draw(img)
-        rect = ((coords[0], coords[1]), (coords[2], coords[3]))
-        img_d.rectangle( rect )
+    # print("Written file names")
+    # for f, coords, index in zip(frame_names, bboxes, range(1000)):
+    #     img = Image.open(f)
+    #     img_d = ImageDraw.Draw(img)
+    #     rect = ((coords[0], coords[1]), (coords[2], coords[3]))
+    #     img_d.rectangle( rect )
 
-        if index % 5 == 0:
-            print(coords)
-            img.show()
-            raw_input("Continue?")
+    #     if index % 5 == 0:
+    #         print(coords)
+    #         img.show()
+    #         raw_input("Continue?")
 
     print(evaluation.video + ' -- Speed: ' + "%.2f" % speed + ' --')
 
