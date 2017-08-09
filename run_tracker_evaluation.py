@@ -4,6 +4,7 @@ import sys
 import os
 
 import numpy as np
+from PIL import Image, ImageDraw
 
 from src.parse_arguments import parse_arguments
 from src.tracker import tracker
@@ -18,8 +19,7 @@ parser.add_argument("-s", "--source", help="dir of frame .jpgs",
                     type=str, required=True)
 args = parser.parse_args()
 
-pos_x, pos_y, target_w, target_h = args.x, args.y, args.w, args.h
-
+pos_x, pos_y, target_w, target_h = args.x + args.w/2, args.y + args.h/2, args.w, args.h
 
 def main():
     # avoid printing TF debugging information
@@ -45,6 +45,18 @@ def main():
     np.savetxt("bboxes", bboxes)
     with open("filenames", "w") as framef:
         framef.writelines("\n".join(frame_names))
+
+    print("Written file names")
+    for f, coords, index in zip(frame_names, bboxes, range(1000)):
+        img = Image.open(f)
+        img_d = ImageDraw.Draw(img)
+        rect = ((coords[0], coords[1]), (coords[2], coords[3]))
+        img_d.rectangle( rect )
+
+        if index % 5 == 0:
+            print(coords)
+            img.show()
+            raw_input("Continue?")
 
     print(evaluation.video + ' -- Speed: ' + "%.2f" % speed + ' --')
 
