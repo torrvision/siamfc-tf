@@ -26,7 +26,7 @@ def main():
     # iterate through all videos of evaluation.dataset
     if evaluation.video == 'all':
         dataset_folder = os.path.join(env.root_dataset, evaluation.dataset)
-        videos_list = [v for v in os.listdir(dataset_folder)]
+        videos_list = [v for v in os.listdir(dataset_folder) if os.path.isdir(os.path.join(dataset_folder, v))]
         videos_list.sort()
         nv = np.size(videos_list)
         speed = np.zeros(nv * evaluation.n_subseq)
