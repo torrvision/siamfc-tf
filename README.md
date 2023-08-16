@@ -13,7 +13,7 @@ In particular, it is the improved version presented as baseline in [*End-to-end 
 1) Create new virtualenv with Python 2.7
 `virtualenv --python=/usr/bin/python2.7 ve-tracking`
 1) Activate the virtualenv
-`source ~/tracking-ve/bin/activate`
+`source ~/ve-tracking/bin/activate`
 1) Clone the repository
 `git clone https://github.com/torrvision/siamfc-tf.git`
 1) `cd siamfc-tf`
